@@ -5,7 +5,7 @@
   "cursorToolOnLoad": 0,
   "enableWebGL": false,
   "eventBusDispatchToDOM": false,
-  "pdfBugEnabled": false,
+  "pdfBugEnabled": true,
   "disableRange": false,
   "disableStream": false,
   "disableAutoFetch": false,
