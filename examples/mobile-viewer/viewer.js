@@ -12,7 +12,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* globals pdfjsLib, pdfjsViewer */
 
 'use strict';
 
@@ -47,7 +46,7 @@ var PDFViewerApplication = {
    * @returns {Promise} - Returns the promise, which is resolved when document
    *                      is opened.
    */
-  open: function (params) {
+  open: function(params) {
     if (this.pdfLoadingTask) {
       // We need to destroy already opened document
       return this.close().then(function () {
@@ -78,7 +77,7 @@ var PDFViewerApplication = {
       self.pdfDocument = pdfDocument;
       self.pdfViewer.setDocument(pdfDocument);
       self.pdfLinkService.setDocument(pdfDocument);
-      self.pdfHistory.initialize(pdfDocument.fingerprint);
+      self.pdfHistory.initialize({ fingerprint: pdfDocument.fingerprint, });
 
       self.loadingBar.hide();
       self.setTitleUsingMetadata(pdfDocument);
@@ -104,7 +103,7 @@ var PDFViewerApplication = {
       }
 
       loadingErrorMessage.then(function (msg) {
-        self.error(msg, {message: message});
+        self.error(msg, { message: message, });
       });
       self.loadingBar.hide();
     });
@@ -115,7 +114,7 @@ var PDFViewerApplication = {
    * @returns {Promise} - Returns the promise, which is resolved when all
    *                      destruction is completed.
    */
-  close: function () {
+  close: function() {
     var errorWrapper = document.getElementById('errorWrapper');
     errorWrapper.setAttribute('hidden', 'true');
 
@@ -154,7 +153,7 @@ var PDFViewerApplication = {
     this.setTitle(title);
   },
 
-  setTitleUsingMetadata: function (pdfDocument) {
+  setTitleUsingMetadata: function(pdfDocument) {
     var self = this;
     pdfDocument.getMetadata().then(function(data) {
       var info = data.info, metadata = data.metadata;
@@ -196,26 +195,26 @@ var PDFViewerApplication = {
     var l10n = this.l10n;
     var moreInfoText = [l10n.get('error_version_info',
       { version: pdfjsLib.version || '?',
-        build: pdfjsLib.build || '?' },
+        build: pdfjsLib.build || '?', },
       'PDF.js v{{version}} (build: {{build}})')];
 
     if (moreInfo) {
       moreInfoText.push(
-        l10n.get('error_message', {message: moreInfo.message},
+        l10n.get('error_message', { message: moreInfo.message, },
           'Message: {{message}}'));
       if (moreInfo.stack) {
         moreInfoText.push(
-          l10n.get('error_stack', {stack: moreInfo.stack},
+          l10n.get('error_stack', { stack: moreInfo.stack, },
             'Stack: {{stack}}'));
       } else {
         if (moreInfo.filename) {
           moreInfoText.push(
-            l10n.get('error_file', {file: moreInfo.filename},
+            l10n.get('error_file', { file: moreInfo.filename, },
               'File: {{file}}'));
         }
         if (moreInfo.lineNumber) {
           moreInfoText.push(
-            l10n.get('error_line', {line: moreInfo.lineNumber},
+            l10n.get('error_line', { line: moreInfo.lineNumber, },
               'Line: {{line}}'));
         }
       }
@@ -311,7 +310,7 @@ var PDFViewerApplication = {
     linkService.setViewer(pdfViewer);
 
     this.pdfHistory = new pdfjsViewer.PDFHistory({
-      linkService: linkService
+      linkService: linkService,
     });
     linkService.setHistory(this.pdfHistory);
 
@@ -339,8 +338,9 @@ var PDFViewerApplication = {
         function() {
       PDFViewerApplication.page = (this.value | 0);
 
-      // Ensure that the page number input displays the correct value, even if the
-      // value entered by the user was invalid (e.g. a floating point number).
+      // Ensure that the page number input displays the correct value,
+      // even if the value entered by the user was invalid
+      // (e.g. a floating point number).
       if (this.value !== PDFViewerApplication.page.toString()) {
         this.value = PDFViewerApplication.page;
       }
@@ -359,7 +359,7 @@ var PDFViewerApplication = {
       document.getElementById('previous').disabled = (page <= 1);
       document.getElementById('next').disabled = (page >= numPages);
     }, true);
-  }
+  },
 };
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -378,6 +378,6 @@ document.addEventListener('DOMContentLoaded', function () {
 // We need to delay opening until all HTML is loaded.
 PDFViewerApplication.animationStartedPromise.then(function () {
   PDFViewerApplication.open({
-    url: DEFAULT_URL
+    url: DEFAULT_URL,
   });
 });

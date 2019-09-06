@@ -96,9 +96,6 @@ class PDFPageView {
     this.resume = null;
     this.error = null;
 
-    this.onBeforeDraw = null;
-    this.onAfterDraw = null;
-
     this.annotationLayer = null;
     this.textLayer = null;
     this.zoomLayer = null;
@@ -118,8 +115,8 @@ class PDFPageView {
     this.pdfPageRotate = pdfPage.rotate;
 
     let totalRotation = (this.rotation + this.pdfPageRotate) % 360;
-    this.viewport = pdfPage.getViewport(this.scale * CSS_UNITS,
-                                        totalRotation);
+    this.viewport = pdfPage.getViewport({ scale: this.scale * CSS_UNITS,
+                                          rotation: totalRotation, });
     this.stats = pdfPage.stats;
     this.reset();
   }
@@ -154,6 +151,7 @@ class PDFPageView {
 
   reset(keepZoomLayer = false, keepAnnotations = false) {
     this.cancelRendering(keepAnnotations);
+    this.renderingState = RenderingStates.INITIAL;
 
     let div = this.div;
     div.style.width = Math.floor(this.viewport.width) + 'px';
@@ -221,6 +219,7 @@ class PDFPageView {
         source: this,
         pageNumber: this.id,
         cssTransform: true,
+        timestamp: performance.now(),
       });
       return;
     }
@@ -244,6 +243,7 @@ class PDFPageView {
           source: this,
           pageNumber: this.id,
           cssTransform: true,
+          timestamp: performance.now(),
         });
         return;
       }
@@ -258,14 +258,15 @@ class PDFPageView {
     this.reset(/* keepZoomLayer = */ true, /* keepAnnotations = */ true);
   }
 
+  /**
+   * PLEASE NOTE: Most likely you want to use the `this.reset()` method,
+   *              rather than calling this one directly.
+   */
   cancelRendering(keepAnnotations = false) {
-    const renderingState = this.renderingState;
-
     if (this.paintTask) {
       this.paintTask.cancel();
       this.paintTask = null;
     }
-    this.renderingState = RenderingStates.INITIAL;
     this.resume = null;
 
     if (this.textLayer) {
@@ -275,14 +276,6 @@ class PDFPageView {
     if (!keepAnnotations && this.annotationLayer) {
       this.annotationLayer.cancel();
       this.annotationLayer = null;
-    }
-
-    if (renderingState !== RenderingStates.INITIAL) {
-      this.eventBus.dispatch('pagecancelled', {
-        source: this,
-        pageNumber: this.id,
-        renderingState,
-      });
     }
   }
 
@@ -432,7 +425,7 @@ class PDFPageView {
       };
     }
 
-    let finishPaintTask = (error) => {
+    const finishPaintTask = async (error) => {
       // The paintTask may have been replaced by a new one, so only remove
       // the reference to the paintTask if it matches the one that is
       // triggering this callback.
@@ -442,7 +435,7 @@ class PDFPageView {
 
       if (error instanceof RenderingCancelledException) {
         this.error = null;
-        return Promise.resolve(undefined);
+        return;
       }
 
       this.renderingState = RenderingStates.FINISHED;
@@ -455,19 +448,17 @@ class PDFPageView {
 
       this.error = error;
       this.stats = pdfPage.stats;
-      if (this.onAfterDraw) {
-        this.onAfterDraw();
-      }
+
       this.eventBus.dispatch('pagerendered', {
         source: this,
         pageNumber: this.id,
         cssTransform: false,
+        timestamp: performance.now(),
       });
 
       if (error) {
-        return Promise.reject(error);
+        throw error;
       }
-      return Promise.resolve(undefined);
     };
 
     let paintTask = this.renderer === RendererType.SVG ?
@@ -500,9 +491,10 @@ class PDFPageView {
     }
     div.setAttribute('data-loaded', true);
 
-    if (this.onBeforeDraw) {
-      this.onBeforeDraw();
-    }
+    this.eventBus.dispatch('pagerender', {
+      source: this,
+      pageNumber: this.id,
+    });
     return resultPromise;
   }
 

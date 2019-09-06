@@ -80,7 +80,24 @@ WebServer.prototype = {
   _handler: function (req, res) {
     var url = req.url.replace(/\/\//g, '/');
     var urlParts = /([^?]*)((?:\?(.*))?)/.exec(url);
-    var pathPart = decodeURI(urlParts[1]), queryPart = urlParts[3];
+    try {
+      // Guard against directory traversal attacks such as
+      // `/../../../../../../../etc/passwd`, which let you make GET requests
+      // for files outside of `this.root`.
+      var pathPart = path.normalize(decodeURI(urlParts[1]));
+      // path.normalize returns a path on the basis of the current platform.
+      // Windows paths cause issues in statFile and serverDirectoryIndex.
+      // Converting to unix path would avoid platform checks in said functions.
+      pathPart = pathPart.replace(/\\/g, '/');
+    } catch (ex) {
+      // If the URI cannot be decoded, a `URIError` is thrown. This happens for
+      // malformed URIs such as `http://localhost:8888/%s%s` and should be
+      // handled as a bad request.
+      res.writeHead(400);
+      res.end('Bad request', 'utf8');
+      return;
+    }
+    var queryPart = urlParts[3];
     var verbose = this.verbose;
 
     var methodHooks = this.hooks[req.method];

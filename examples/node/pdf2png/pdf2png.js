@@ -21,7 +21,7 @@ function NodeCanvasFactory() {}
 NodeCanvasFactory.prototype = {
   create: function NodeCanvasFactory_create(width, height) {
     assert(width > 0 && height > 0, 'Invalid canvas size');
-    var canvas = new Canvas(width, height);
+    var canvas = Canvas.createCanvas(width, height);
     var context = canvas.getContext('2d');
     return {
       canvas: canvas,
@@ -64,13 +64,14 @@ loadingTask.promise.then(function(pdfDocument) {
   // Get the first page.
   pdfDocument.getPage(1).then(function (page) {
     // Render the page on a Node canvas with 100% scale.
-    var viewport = page.getViewport(1.0);
+    var viewport = page.getViewport({ scale: 1.0, });
     var canvasFactory = new NodeCanvasFactory();
-    var canvasAndContext = canvasFactory.create(viewport.width, viewport.height);
+    var canvasAndContext =
+      canvasFactory.create(viewport.width, viewport.height);
     var renderContext = {
       canvasContext: canvasAndContext.context,
       viewport: viewport,
-      canvasFactory: canvasFactory
+      canvasFactory: canvasFactory,
     };
 
     var renderTask = page.render(renderContext);
@@ -81,7 +82,8 @@ loadingTask.promise.then(function(pdfDocument) {
         if (error) {
           console.error('Error: ' + error);
         } else {
-          console.log('Finished converting first page of PDF file to a PNG image.');
+          console.log(
+            'Finished converting first page of PDF file to a PNG image.');
         }
       });
     });
