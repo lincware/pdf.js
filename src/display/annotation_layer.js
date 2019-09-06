@@ -13,13 +13,8 @@
  * limitations under the License.
  */
 
-import {
-  addLinkAttributes, DOMSVGFactory, getFilenameFromUrl, LinkTarget
-} from './dom_utils';
-import {
-  AnnotationBorderStyleType, AnnotationType, stringToPDFString, unreachable,
-  Util, warn
-} from '../shared/util';
+import { addLinkAttributes, DOMSVGFactory, getFilenameFromUrl, LinkTarget } from './dom_utils';
+import { AnnotationBorderStyleType, AnnotationType, stringToPDFString, unreachable, Util, warn } from '../shared/util';
 
 /**
  * @typedef {Object} AnnotationElementParameters
@@ -54,6 +49,9 @@ class AnnotationElementFactory {
         let fieldType = parameters.data.fieldType;
 
         switch (fieldType) {
+          case 'Sig':
+            console.log('Sig Data', parameters);
+            return new SigWidgetAnnotationElement(parameters);
           case 'Tx':
             return new TextWidgetAnnotationElement(parameters);
           case 'Btn':
@@ -203,8 +201,8 @@ class AnnotationElement {
 
       if (data.color) {
         container.style.borderColor = Util.makeCssRgb(data.color[0] | 0,
-                                                      data.color[1] | 0,
-                                                      data.color[2] | 0);
+          data.color[1] | 0,
+          data.color[2] | 0);
       } else {
         // Transparent (invisible) border, so do not draw it at all.
         container.style.borderWidth = 0;
@@ -270,7 +268,7 @@ class AnnotationElement {
 class LinkAnnotationElement extends AnnotationElement {
   constructor(parameters) {
     let isRenderable = !!(parameters.data.url || parameters.data.dest ||
-                          parameters.data.action);
+      parameters.data.action);
     super(parameters, isRenderable);
   }
 
@@ -290,7 +288,7 @@ class LinkAnnotationElement extends AnnotationElement {
     addLinkAttributes(link, {
       url: data.url,
       target: (data.newWindow ?
-               LinkTarget.BLANK : linkService.externalLinkTarget),
+        LinkTarget.BLANK : linkService.externalLinkTarget),
       rel: linkService.externalLinkRel,
     });
 
@@ -348,7 +346,7 @@ class LinkAnnotationElement extends AnnotationElement {
 class TextAnnotationElement extends AnnotationElement {
   constructor(parameters) {
     let isRenderable = !!(parameters.data.hasPopup ||
-                          parameters.data.title || parameters.data.contents);
+      parameters.data.title || parameters.data.contents);
     super(parameters, isRenderable);
   }
 
@@ -448,7 +446,7 @@ class TextWidgetAnnotationElement extends WidgetAnnotationElement {
 
       let font = null;
       if (this.data.fontRefName &&
-          this.page.commonObjs.has(this.data.fontRefName)) {
+        this.page.commonObjs.has(this.data.fontRefName)) {
         font = this.page.commonObjs.get(this.data.fontRefName);
       }
       this._setTextStyle(element, font);
@@ -489,6 +487,28 @@ class TextWidgetAnnotationElement extends WidgetAnnotationElement {
     let fontFamily = font.loadedName ? '"' + font.loadedName + '", ' : '';
     let fallbackName = font.fallbackName || 'Helvetica, sans-serif';
     style.fontFamily = fontFamily + fallbackName;
+  }
+}
+
+class SigWidgetAnnotationElement extends TextWidgetAnnotationElement {
+  render() {
+    this.container.className = 'sigAnnotation';
+    this.container.setAttribute('data-field-id', this.data.fieldName);
+
+    // Create an invisible square with the same rectangle that acts as the
+    // trigger for the popup. Only the square itself should trigger the
+    // popup, not the entire container.
+    let data = this.data;
+    let width = data.rect[2] - data.rect[0];
+    let height = data.rect[3] - data.rect[1];
+
+    let div = document.createElement('div');
+    div.style.width = width + 'px';
+    div.style.height = height + 'px';
+
+    this.container.append(div);
+
+    return this.container;
   }
 }
 
@@ -807,7 +827,7 @@ class PopupElement {
 class LineAnnotationElement extends AnnotationElement {
   constructor(parameters) {
     let isRenderable = !!(parameters.data.hasPopup ||
-                          parameters.data.title || parameters.data.contents);
+      parameters.data.title || parameters.data.contents);
     super(parameters, isRenderable, /* ignoreBorder = */ true);
   }
 
@@ -853,7 +873,7 @@ class LineAnnotationElement extends AnnotationElement {
 class SquareAnnotationElement extends AnnotationElement {
   constructor(parameters) {
     let isRenderable = !!(parameters.data.hasPopup ||
-                          parameters.data.title || parameters.data.contents);
+      parameters.data.title || parameters.data.contents);
     super(parameters, isRenderable, /* ignoreBorder = */ true);
   }
 
@@ -902,7 +922,7 @@ class SquareAnnotationElement extends AnnotationElement {
 class CircleAnnotationElement extends AnnotationElement {
   constructor(parameters) {
     let isRenderable = !!(parameters.data.hasPopup ||
-                          parameters.data.title || parameters.data.contents);
+      parameters.data.title || parameters.data.contents);
     super(parameters, isRenderable, /* ignoreBorder = */ true);
   }
 
@@ -951,7 +971,7 @@ class CircleAnnotationElement extends AnnotationElement {
 class PolylineAnnotationElement extends AnnotationElement {
   constructor(parameters) {
     let isRenderable = !!(parameters.data.hasPopup ||
-                          parameters.data.title || parameters.data.contents);
+      parameters.data.title || parameters.data.contents);
     super(parameters, isRenderable, /* ignoreBorder = */ true);
 
     this.containerClassName = 'polylineAnnotation';
@@ -1020,7 +1040,7 @@ class PolygonAnnotationElement extends PolylineAnnotationElement {
 class InkAnnotationElement extends AnnotationElement {
   constructor(parameters) {
     let isRenderable = !!(parameters.data.hasPopup ||
-                          parameters.data.title || parameters.data.contents);
+      parameters.data.title || parameters.data.contents);
     super(parameters, isRenderable, /* ignoreBorder = */ true);
 
     this.containerClassName = 'inkAnnotation';
@@ -1087,7 +1107,7 @@ class InkAnnotationElement extends AnnotationElement {
 class HighlightAnnotationElement extends AnnotationElement {
   constructor(parameters) {
     let isRenderable = !!(parameters.data.hasPopup ||
-                          parameters.data.title || parameters.data.contents);
+      parameters.data.title || parameters.data.contents);
     super(parameters, isRenderable, /* ignoreBorder = */ true);
   }
 
@@ -1111,7 +1131,7 @@ class HighlightAnnotationElement extends AnnotationElement {
 class UnderlineAnnotationElement extends AnnotationElement {
   constructor(parameters) {
     let isRenderable = !!(parameters.data.hasPopup ||
-                          parameters.data.title || parameters.data.contents);
+      parameters.data.title || parameters.data.contents);
     super(parameters, isRenderable, /* ignoreBorder = */ true);
   }
 
@@ -1135,7 +1155,7 @@ class UnderlineAnnotationElement extends AnnotationElement {
 class SquigglyAnnotationElement extends AnnotationElement {
   constructor(parameters) {
     let isRenderable = !!(parameters.data.hasPopup ||
-                          parameters.data.title || parameters.data.contents);
+      parameters.data.title || parameters.data.contents);
     super(parameters, isRenderable, /* ignoreBorder = */ true);
   }
 
@@ -1159,7 +1179,7 @@ class SquigglyAnnotationElement extends AnnotationElement {
 class StrikeOutAnnotationElement extends AnnotationElement {
   constructor(parameters) {
     let isRenderable = !!(parameters.data.hasPopup ||
-                          parameters.data.title || parameters.data.contents);
+      parameters.data.title || parameters.data.contents);
     super(parameters, isRenderable, /* ignoreBorder = */ true);
   }
 
@@ -1183,7 +1203,7 @@ class StrikeOutAnnotationElement extends AnnotationElement {
 class StampAnnotationElement extends AnnotationElement {
   constructor(parameters) {
     let isRenderable = !!(parameters.data.hasPopup ||
-                          parameters.data.title || parameters.data.contents);
+      parameters.data.title || parameters.data.contents);
     super(parameters, isRenderable, /* ignoreBorder = */ true);
   }
 

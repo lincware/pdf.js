@@ -190,6 +190,40 @@
 .annotationLayer .polygonAnnotation svg polygon,
 .annotationLayer .inkAnnotation svg polyline,
 .annotationLayer .stampAnnotation,
-.annotationLayer .fileAttachmentAnnotation {
+.annotationLayer .fileAttachmentAnnotation ,
+.annotationLayer .sigAnnotation {
   cursor: pointer;
+}
+
+.annotationLayer .sigAnnotation {
+  background-color: rgba(255, 251, 0, 0.10);
+  border: none;
+}
+
+.annotationLayer .sigAnnotation.active {
+  background-color: rgba(255, 251, 0, 0.25);
+  border: 1px solid rgba(255, 232, 0, 0.50);
+
+  box-shadow: 0 1px 1px rgba(0, 0, 0, .2);
+}
+
+.annotationLayer .sigAnnotation.active:hover {
+  background-color: rgba(255, 251, 0, 0.50);
+  border: 1px solid rgba(255, 232, 0, 0.80);
+
+  box-shadow: 0 1px 1px rgba(0, 0, 0, .4);
+}
+
+.annotationLayer .sigAnnotation > div {
+  display: none;
+}
+
+.annotationLayer .sigAnnotation.active > div {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  font-weight: bold;
+
+  text-shadow: 1px 1px 1px #FFF;
 }

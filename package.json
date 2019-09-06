@@ -2,10 +2,10 @@
   "name": "pdf.js",
   "version": "2.0.0",
   "devDependencies": {
-    "@babel/core": "^7.0.0",
-    "@babel/plugin-transform-modules-commonjs": "^7.0.0",
+    "@babel/core": "^7.4.5",
+    "@babel/plugin-transform-modules-commonjs": "^7.4.4",
     "@babel/plugin-transform-runtime": "^7.0.0",
-    "@babel/preset-env": "^7.0.0",
+    "@babel/preset-env": "^7.4.5",
     "@babel/runtime": "^7.0.0",
     "acorn": "^5.7.3",
     "autoprefixer": "^8.6.5",
@@ -27,7 +27,7 @@
     "gulp-zip": "^4.2.0",
     "jasmine": "^3.3.0",
     "jasmine-core": "^3.3.0",
-    "jsdoc": "^3.5.5",
+    "jsdoc": "^3.6.2",
     "jstransformer-markdown-it": "^2.1.0",
     "merge-stream": "^1.0.1",
     "mkdirp": "^0.5.1",
@@ -53,5 +53,9 @@
     "type": "git",
     "url": "git://github.com/mozilla/pdf.js.git"
   },
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "dependencies": {
+    "npm": "^6.9.2",
+    "pdfjs-dist": "file:build/dist"
+  }
 }
