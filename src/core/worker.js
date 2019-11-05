@@ -67,29 +67,14 @@ var WorkerMessageHandler = {
 
       // check if Uint8Array can be sent to worker
       if (!(data instanceof Uint8Array)) {
-        handler.send('test', false);
+        handler.send('test', null);
         return;
       }
       // making sure postMessage transfers are working
-      var supportTransfers = data[0] === 255;
+      const supportTransfers = data[0] === 255;
       handler.postMessageTransfers = supportTransfers;
-      // check if the response property is supported by xhr
-      var xhr = new XMLHttpRequest();
-      var responseExists = 'response' in xhr;
-      // check if the property is actually implemented
-      try {
-        xhr.responseType; // eslint-disable-line no-unused-expressions
-      } catch (e) {
-        responseExists = false;
-      }
-      if (!responseExists) {
-        handler.send('test', false);
-        return;
-      }
-      handler.send('test', {
-        supportTypedArray: true,
-        supportTransfers,
-      });
+
+      handler.send('test', { supportTransfers, });
     });
 
     handler.on('configure', function wphConfigure(data) {
@@ -285,30 +270,29 @@ var WorkerMessageHandler = {
         handler.send('GetDoc', { pdfInfo: doc, });
       }
 
-      function onFailure(e) {
+      function onFailure(ex) {
         ensureNotTerminated();
 
-        if (e instanceof PasswordException) {
-          var task = new WorkerTask('PasswordException: response ' + e.code);
+        if (ex instanceof PasswordException) {
+          var task = new WorkerTask(`PasswordException: response ${ex.code}`);
           startWorkerTask(task);
 
-          handler.sendWithPromise('PasswordRequest', e).then(function (data) {
+          handler.sendWithPromise('PasswordRequest', ex).then(function(data) {
             finishWorkerTask(task);
             pdfManager.updatePassword(data.password);
             pdfManagerReady();
-          }).catch(function (boundException) {
+          }).catch(function() {
             finishWorkerTask(task);
-            handler.send('PasswordException', boundException);
-          }.bind(null, e));
-        } else if (e instanceof InvalidPDFException) {
-          handler.send('InvalidPDF', e);
-        } else if (e instanceof MissingPDFException) {
-          handler.send('MissingPDF', e);
-        } else if (e instanceof UnexpectedResponseException) {
-          handler.send('UnexpectedResponse', e);
+            handler.send('DocException', ex);
+          });
+        } else if (ex instanceof InvalidPDFException ||
+                   ex instanceof MissingPDFException ||
+                   ex instanceof UnexpectedResponseException ||
+                   ex instanceof UnknownErrorException) {
+          handler.send('DocException', ex);
         } else {
-          handler.send('UnknownError',
-                       new UnknownErrorException(e.message, e.toString()));
+          handler.send('DocException',
+                       new UnknownErrorException(ex.message, ex.toString()));
         }
       }
 

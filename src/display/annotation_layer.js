@@ -27,8 +27,8 @@ import { AnnotationBorderStyleType, AnnotationType, stringToPDFString, unreachab
  * @property {PageViewport} viewport
  * @property {IPDFLinkService} linkService
  * @property {DownloadManager} downloadManager
- * @property {string} imageResourcesPath - (optional) Path for image resources,
- *   mainly for annotation icons. Include trailing slash.
+ * @property {string} [imageResourcesPath] - Path for image resources, mainly
+ *   for annotation icons. Include trailing slash.
  * @property {boolean} renderInteractiveForms
  * @property {Object} svgFactory
  */
@@ -293,6 +293,7 @@ class LinkAnnotationElement extends AnnotationElement {
     const { data, linkService, } = this;
     const link = document.createElement('a');
 
+    if (data.url) {
     addLinkAttributes(link, {
       url: data.url,
       target: (data.newWindow ?
@@ -300,14 +301,11 @@ class LinkAnnotationElement extends AnnotationElement {
       rel: linkService.externalLinkRel,
       enabled: linkService.externalLinkEnabled,
     });
-
-    if (!data.url) {
-      if (data.action) {
+    } else if (data.action) {
         this._bindNamedAction(link, data.action);
       } else {
         this._bindLink(link, data.dest);
       }
-    }
 
     this.container.appendChild(link);
     return this.container;
@@ -1351,8 +1349,8 @@ class FileAttachmentAnnotationElement extends AnnotationElement {
  * @property {PDFPage} page
  * @property {IPDFLinkService} linkService
  * @property {DownloadManager} downloadManager
- * @property {string} imageResourcesPath - (optional) Path for image resources,
- *   mainly for annotation icons. Include trailing slash.
+ * @property {string} [imageResourcesPath] - Path for image resources, mainly
+ *   for annotation icons. Include trailing slash.
  * @property {boolean} renderInteractiveForms
  */
 
