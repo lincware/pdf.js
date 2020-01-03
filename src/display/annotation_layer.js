@@ -515,7 +515,7 @@ class SigWidgetAnnotationElement extends TextWidgetAnnotationElement {
     div.style.width = width + 'px';
     div.style.height = height + 'px';
 
-    this.container.append(div);
+    this.container.appendChild(div);
 
     return this.container;
   }
@@ -906,7 +906,7 @@ class LineAnnotationElement extends AnnotationElement {
     line.setAttribute('stroke', 'transparent');
 
     svg.appendChild(line);
-    this.container.append(svg);
+    this.container.appendChild(svg);
 
     // Create the popup ourselves so that we can bind it to the line instead
     // of to the entire container (which is the default).
@@ -955,7 +955,7 @@ class SquareAnnotationElement extends AnnotationElement {
     square.setAttribute('fill', 'none');
 
     svg.appendChild(square);
-    this.container.append(svg);
+    this.container.appendChild(svg);
 
     // Create the popup ourselves so that we can bind it to the square instead
     // of to the entire container (which is the default).
@@ -1004,7 +1004,7 @@ class CircleAnnotationElement extends AnnotationElement {
     circle.setAttribute('fill', 'none');
 
     svg.appendChild(circle);
-    this.container.append(svg);
+    this.container.appendChild(svg);
 
     // Create the popup ourselves so that we can bind it to the circle instead
     // of to the entire container (which is the default).
@@ -1061,7 +1061,7 @@ class PolylineAnnotationElement extends AnnotationElement {
     polyline.setAttribute('fill', 'none');
 
     svg.appendChild(polyline);
-    this.container.append(svg);
+    this.container.appendChild(svg);
 
     // Create the popup ourselves so that we can bind it to the polyline
     // instead of to the entire container (which is the default).
@@ -1161,7 +1161,7 @@ class InkAnnotationElement extends AnnotationElement {
       svg.appendChild(polyline);
     }
 
-    this.container.append(svg);
+    this.container.appendChild(svg);
     return this.container;
   }
 }
