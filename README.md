@@ -23,7 +23,9 @@ Feel free to stop by #pdfjs on irc.mozilla.org for questions or guidance.
 
 ### Online demo
 
-+ https://mozilla.github.io/pdf.js/web/viewer.html
++ Modern browsers: https://mozilla.github.io/pdf.js/web/viewer.html
+
++ Older browsers: https://mozilla.github.io/pdf.js/es5/web/viewer.html
 
 ### Browser Extensions
 
@@ -70,6 +72,12 @@ Please keep in mind that this requires an ES6 compatible browser; refer to [Buil
 It is also possible to view all test PDF files on the right side by opening:
 
 + http://localhost:8888/test/pdfs/?frame
+
+## Online setup with a single click
+
+It's recommended to follow [Getting the Code] above, however you can also use [Gitpod](https://gitpod.io) (a free online VS Code like IDE). With a single click it will launch a ready to use workspace, with all the dependencies pre-installed and the web server running, so that you can start coding straight away.
+
+[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/mozilla/pdf.js)
 
 ## Building PDF.js
 
