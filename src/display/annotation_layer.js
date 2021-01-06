@@ -1182,6 +1182,9 @@ class HighlightAnnotationElement extends AnnotationElement {
    */
   render() {
     this.container.className = 'highlightAnnotation';
+    if (this.data.subject) {
+      this.container.setAttribute('data-subject', this.data.subject);
+    }
 
     if (!this.data.hasPopup) {
       this._createPopup(this.container, null, this.data);

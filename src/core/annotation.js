@@ -733,6 +733,11 @@ class MarkupAnnotation extends Annotation {
         this.data.color = null;
       }
     }
+
+    if (dict.has('Subj')) {
+      this.data.subject = dict.get('Subj');
+      console.log('Subject found', this.data.subject);
+    }
   }
 
   /**
