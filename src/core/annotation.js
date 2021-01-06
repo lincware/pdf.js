@@ -758,6 +758,10 @@ class MarkupAnnotation extends Annotation {
         this.data.color = null;
       }
     }
+
+    if (dict.has('Subj')) {
+      this.data.subject = stringToPDFString(dict.get('Subj'));
+    }
   }
 
   /**

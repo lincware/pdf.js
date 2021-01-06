@@ -54,7 +54,6 @@ class AnnotationElementFactory {
 
         switch (fieldType) {
           case 'Sig':
-            console.log('Sig Data', parameters);
             return new SigWidgetAnnotationElement(parameters);
           case "Tx":
             return new TextWidgetAnnotationElement(parameters);
@@ -1237,6 +1236,10 @@ class HighlightAnnotationElement extends AnnotationElement {
    */
   render() {
     this.container.className = "highlightAnnotation";
+
+    if (this.data.subject) {
+      this.container.setAttribute('data-subject', this.data.subject);
+    }
 
     if (!this.data.hasPopup) {
       this._createPopup(this.container, null, this.data);
