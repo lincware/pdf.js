@@ -14,10 +14,20 @@
  */
 /* eslint no-var: error */
 
-import { addLinkAttributes, DOMSVGFactory, getFilenameFromUrl, LinkTarget ,
+import {
+  addLinkAttributes,
+  DOMSVGFactory,
+  getFilenameFromUrl,
+  LinkTarget,
   PDFDateString,
 } from "./display_utils.js";
-import { AnnotationBorderStyleType, AnnotationType, stringToPDFString, unreachable, Util, warn ,
+import {
+  AnnotationBorderStyleType,
+  AnnotationType,
+  stringToPDFString,
+  unreachable,
+  Util,
+  warn,
 } from "../shared/util.js";
 
 /**
@@ -53,7 +63,7 @@ class AnnotationElementFactory {
         const fieldType = parameters.data.fieldType;
 
         switch (fieldType) {
-          case 'Sig':
+          case "Sig":
             return new SigWidgetAnnotationElement(parameters);
           case "Tx":
             return new TextWidgetAnnotationElement(parameters);
@@ -301,19 +311,19 @@ class LinkAnnotationElement extends AnnotationElement {
     const link = document.createElement("a");
 
     if (data.url) {
-    addLinkAttributes(link, {
-      url: data.url,
-      target: data.newWindow
-        ? LinkTarget.BLANK
+      addLinkAttributes(link, {
+        url: data.url,
+        target: data.newWindow
+          ? LinkTarget.BLANK
           : linkService.externalLinkTarget,
-      rel: linkService.externalLinkRel,
-      enabled: linkService.externalLinkEnabled,
-    });
+        rel: linkService.externalLinkRel,
+        enabled: linkService.externalLinkEnabled,
+      });
     } else if (data.action) {
-        this._bindNamedAction(link, data.action);
-      } else {
-        this._bindLink(link, data.dest);
-      }
+      this._bindNamedAction(link, data.action);
+    } else {
+      this._bindLink(link, data.dest);
+    }
 
     this.container.appendChild(link);
     return this.container;
@@ -520,19 +530,19 @@ class TextWidgetAnnotationElement extends WidgetAnnotationElement {
 
 class SigWidgetAnnotationElement extends TextWidgetAnnotationElement {
   render() {
-    this.container.className = 'sigAnnotation';
-    this.container.setAttribute('data-field-id', this.data.fieldName);
+    this.container.className = "sigAnnotation";
+    this.container.setAttribute("data-field-id", this.data.fieldName);
 
     // Create an invisible square with the same rectangle that acts as the
     // trigger for the popup. Only the square itself should trigger the
     // popup, not the entire container.
-    let data = this.data;
-    let width = data.rect[2] - data.rect[0];
-    let height = data.rect[3] - data.rect[1];
+    const data = this.data;
+    const width = data.rect[2] - data.rect[0];
+    const height = data.rect[3] - data.rect[1];
 
-    let div = document.createElement('div');
-    div.style.width = width + 'px';
-    div.style.height = height + 'px';
+    const div = document.createElement("div");
+    div.style.width = width + "px";
+    div.style.height = height + "px";
 
     this.container.append(div);
 
@@ -1238,7 +1248,7 @@ class HighlightAnnotationElement extends AnnotationElement {
     this.container.className = "highlightAnnotation";
 
     if (this.data.subject) {
-      this.container.setAttribute('data-subject', this.data.subject);
+      this.container.setAttribute("data-subject", this.data.subject);
     }
 
     if (!this.data.hasPopup) {
