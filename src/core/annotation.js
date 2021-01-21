@@ -28,12 +28,12 @@ import {
   Util,
   warn,
 } from "../shared/util.js";
-import { Catalog, FileSpec, ObjectLoader } from "./obj.js";
-import { Dict, isDict, isName, isRef, isStream } from "./primitives.js";
-import { ColorSpace } from "./colorspace.js";
-import { getInheritableProperty } from "./core_utils.js";
-import { OperatorList } from "./operator_list.js";
-import { Stream } from "./stream.js";
+import {Catalog, FileSpec, ObjectLoader} from "./obj.js";
+import {Dict, isDict, isName, isRef, isStream} from "./primitives.js";
+import {ColorSpace} from "./colorspace.js";
+import {getInheritableProperty } from "./core_utils.js";
+import {OperatorList} from "./operator_list.js";
+import {Stream} from "./stream.js";
 
 class AnnotationFactory {
   /**
@@ -92,6 +92,8 @@ class AnnotationFactory {
         fieldType = isName(fieldType) ? fieldType.name : null;
 
         switch (fieldType) {
+          case 'Sig':
+            return new SigWidgetAnnotation(parameters);
           case "Tx":
             return new TextWidgetAnnotation(parameters);
           case "Btn":
@@ -765,6 +767,11 @@ class MarkupAnnotation extends Annotation {
         this.data.color = null;
       }
     }
+
+    if (dict.has('Subj')) {
+      this.data.subject = dict.get('Subj');
+      console.log('Subject found', this.data.subject);
+    }
   }
 
   /**
@@ -812,8 +819,8 @@ class WidgetAnnotation extends Annotation {
     // since it's (most likely) a `Dict` which is non-serializable and will thus
     // cause errors when sending annotations to the main-thread (issue 10347).
     if (data.fieldType === "Sig") {
+      // this.setFlags(AnnotationFlag.HIDDEN);
       data.fieldValue = null;
-      this.setFlags(AnnotationFlag.HIDDEN);
     }
   }
 
@@ -945,6 +952,9 @@ class TextWidgetAnnotation extends WidgetAnnotation {
         return operatorList;
       });
   }
+}
+
+class SigWidgetAnnotation extends TextWidgetAnnotation {
 }
 
 class ButtonWidgetAnnotation extends WidgetAnnotation {

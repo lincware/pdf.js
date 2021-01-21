@@ -63,6 +63,9 @@ class AnnotationElementFactory {
         const fieldType = parameters.data.fieldType;
 
         switch (fieldType) {
+          case 'Sig':
+            console.log('Sig Data', parameters);
+            return new SigWidgetAnnotationElement(parameters);
           case "Tx":
             return new TextWidgetAnnotationElement(parameters);
           case "Btn":
@@ -527,6 +530,28 @@ class TextWidgetAnnotationElement extends WidgetAnnotationElement {
   }
 }
 
+class SigWidgetAnnotationElement extends TextWidgetAnnotationElement {
+  render() {
+    this.container.className = 'sigAnnotation';
+    this.container.setAttribute('data-field-id', this.data.fieldName);
+
+    // Create an invisible square with the same rectangle that acts as the
+    // trigger for the popup. Only the square itself should trigger the
+    // popup, not the entire container.
+    let data = this.data;
+    let width = data.rect[2] - data.rect[0];
+    let height = data.rect[3] - data.rect[1];
+
+    let div = document.createElement('div');
+    div.style.width = width + 'px';
+    div.style.height = height + 'px';
+
+    this.container.appendChild(div);
+
+    return this.container;
+  }
+}
+
 class CheckboxWidgetAnnotationElement extends WidgetAnnotationElement {
   constructor(parameters) {
     super(parameters, parameters.renderInteractiveForms);
@@ -923,7 +948,7 @@ class LineAnnotationElement extends AnnotationElement {
     line.setAttribute("stroke", "transparent");
 
     svg.appendChild(line);
-    this.container.append(svg);
+    this.container.appendChild(svg);
 
     // Create the popup ourselves so that we can bind it to the line instead
     // of to the entire container (which is the default).
@@ -977,7 +1002,7 @@ class SquareAnnotationElement extends AnnotationElement {
     square.setAttribute("fill", "none");
 
     svg.appendChild(square);
-    this.container.append(svg);
+    this.container.appendChild(svg);
 
     // Create the popup ourselves so that we can bind it to the square instead
     // of to the entire container (which is the default).
@@ -1031,7 +1056,7 @@ class CircleAnnotationElement extends AnnotationElement {
     circle.setAttribute("fill", "none");
 
     svg.appendChild(circle);
-    this.container.append(svg);
+    this.container.appendChild(svg);
 
     // Create the popup ourselves so that we can bind it to the circle instead
     // of to the entire container (which is the default).
@@ -1093,7 +1118,7 @@ class PolylineAnnotationElement extends AnnotationElement {
     polyline.setAttribute("fill", "none");
 
     svg.appendChild(polyline);
-    this.container.append(svg);
+    this.container.appendChild(svg);
 
     // Create the popup ourselves so that we can bind it to the polyline
     // instead of to the entire container (which is the default).
@@ -1201,7 +1226,7 @@ class InkAnnotationElement extends AnnotationElement {
       svg.appendChild(polyline);
     }
 
-    this.container.append(svg);
+    this.container.appendChild(svg);
     return this.container;
   }
 }
@@ -1225,6 +1250,9 @@ class HighlightAnnotationElement extends AnnotationElement {
    */
   render() {
     this.container.className = "highlightAnnotation";
+    if (this.data.subject) {
+      this.container.setAttribute('data-subject', this.data.subject);
+    }
 
     if (!this.data.hasPopup) {
       this._createPopup(this.container, null, this.data);
