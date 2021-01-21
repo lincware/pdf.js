@@ -12,7 +12,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* eslint no-var: error */
 
 import {
   Ascii85Stream,
@@ -43,7 +42,7 @@ import {
   Name,
   Ref,
 } from "./primitives.js";
-import { isSpace, MissingDataException } from "./core_utils.js";
+import { isWhiteSpace, MissingDataException } from "./core_utils.js";
 import { CCITTFaxStream } from "./ccitt_stream.js";
 import { Jbig2Stream } from "./jbig2_stream.js";
 import { JpegStream } from "./jpeg_stream.js";
@@ -203,10 +202,11 @@ class Parser {
       I = 0x49,
       SPACE = 0x20,
       LF = 0xa,
-      CR = 0xd;
-    const n = 10,
+      CR = 0xd,
       NUL = 0x0;
-    const startPos = stream.pos;
+    const lexer = this.lexer,
+      startPos = stream.pos,
+      n = 10;
     let state = 0,
       ch,
       maybeEIPos;
@@ -216,7 +216,7 @@ class Parser {
       } else if (state === 1) {
         state = ch === I ? 2 : 0;
       } else {
-        assert(state === 2);
+        assert(state === 2, "findDefaultInlineStreamEnd - invalid state.");
         if (ch === SPACE || ch === LF || ch === CR) {
           maybeEIPos = stream.pos;
           // Let's check that the next `n` bytes are ASCII... just to be sure.
@@ -243,6 +243,25 @@ class Parser {
               break;
             }
           }
+
+          if (state !== 2) {
+            continue;
+          }
+          // Check that the "EI" sequence isn't part of the image data, since
+          // that would cause the image to be truncated (fixes issue11124.pdf).
+          if (lexer.knownCommands) {
+            const nextObj = lexer.peekObj();
+            if (nextObj instanceof Cmd && !lexer.knownCommands[nextObj.cmd]) {
+              // Not a valid command, i.e. the inline image data *itself*
+              // contains an "EI" sequence. Resetting the state.
+              state = 0;
+            }
+          } else {
+            warn(
+              "findDefaultInlineStreamEnd - `lexer.knownCommands` is undefined."
+            );
+          }
+
           if (state === 2) {
             break; // Finished!
           }
@@ -270,7 +289,7 @@ class Parser {
 
     // Ensure that we don't accidentally truncate the inline image, when the
     // data is immediately followed by the "EI" marker (fixes issue10388.pdf).
-    if (!isSpace(ch)) {
+    if (!isWhiteSpace(ch)) {
       endOffset--;
     }
     return stream.pos - endOffset - startPos;
@@ -394,7 +413,7 @@ class Parser {
         ch = stream.peekByte();
         // Handle corrupt PDF documents which contains whitespace "inside" of
         // the EOD marker (fixes issue10614.pdf).
-        while (isSpace(ch)) {
+        while (isWhiteSpace(ch)) {
           stream.skip();
           ch = stream.peekByte();
         }
@@ -640,7 +659,7 @@ class Parser {
             // Ensure that the byte immediately following the truncated
             // endstream command is a space, to prevent false positives.
             const lastByte = stream.peekBytes(end + 1)[end];
-            if (!isSpace(lastByte)) {
+            if (!isWhiteSpace(lastByte)) {
               break;
             }
             info(
@@ -842,6 +861,7 @@ class Lexer {
     // other commands or literals as a prefix. The knowCommands is optional.
     this.knownCommands = knownCommands;
 
+    this._hexStringNumWarn = 0;
     this.beginInlineImagePos = -1;
   }
 
@@ -885,7 +905,7 @@ class Lexer {
       if (
         divideBy === 10 &&
         sign === 0 &&
-        (isSpace(ch) || ch === /* EOF = */ -1)
+        (isWhiteSpace(ch) || ch === /* EOF = */ -1)
       ) {
         // This is consistent with Adobe Reader (fixes issue9252.pdf).
         warn("Lexer.getNumber - treating a single decimal point as zero.");
@@ -947,7 +967,7 @@ class Lexer {
       baseValue /= divideBy;
     }
     if (eNotation) {
-      baseValue *= Math.pow(10, powerValueSign * powerValue);
+      baseValue *= 10 ** (powerValueSign * powerValue);
     }
     return sign * baseValue;
   }
@@ -1099,12 +1119,32 @@ class Lexer {
     return Name.get(strBuf.join(""));
   }
 
+  /**
+   * @private
+   */
+  _hexStringWarn(ch) {
+    const MAX_HEX_STRING_NUM_WARN = 5;
+
+    if (this._hexStringNumWarn++ === MAX_HEX_STRING_NUM_WARN) {
+      warn("getHexString - ignoring additional invalid characters.");
+      return;
+    }
+    if (this._hexStringNumWarn > MAX_HEX_STRING_NUM_WARN) {
+      // Limit the number of warning messages printed for a `this.getHexString`
+      // invocation, since corrupt PDF documents may otherwise spam the console
+      // enough to affect general performance negatively.
+      return;
+    }
+    warn(`getHexString - ignoring invalid character: ${ch}`);
+  }
+
   getHexString() {
     const strBuf = this.strBuf;
     strBuf.length = 0;
     let ch = this.currentChar;
     let isFirstHex = true;
     let firstDigit, secondDigit;
+    this._hexStringNumWarn = 0;
 
     while (true) {
       if (ch < 0) {
@@ -1120,14 +1160,14 @@ class Lexer {
         if (isFirstHex) {
           firstDigit = toHexDigit(ch);
           if (firstDigit === -1) {
-            warn(`Ignoring invalid character "${ch}" in hex string`);
+            this._hexStringWarn(ch);
             ch = this.nextChar();
             continue;
           }
         } else {
           secondDigit = toHexDigit(ch);
           if (secondDigit === -1) {
-            warn(`Ignoring invalid character "${ch}" in hex string`);
+            this._hexStringWarn(ch);
             ch = this.nextChar();
             continue;
           }
@@ -1253,6 +1293,28 @@ class Lexer {
     }
 
     return Cmd.get(str);
+  }
+
+  peekObj() {
+    const streamPos = this.stream.pos,
+      currentChar = this.currentChar,
+      beginInlineImagePos = this.beginInlineImagePos;
+
+    let nextObj;
+    try {
+      nextObj = this.getObj();
+    } catch (ex) {
+      if (ex instanceof MissingDataException) {
+        throw ex;
+      }
+      warn(`peekObj: ${ex}`);
+    }
+    // Ensure that we reset *all* relevant `Lexer`-instance state.
+    this.stream.pos = streamPos;
+    this.currentChar = currentChar;
+    this.beginInlineImagePos = beginInlineImagePos;
+
+    return nextObj;
   }
 
   skipToNextLine() {

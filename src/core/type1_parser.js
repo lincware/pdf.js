@@ -12,9 +12,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/* eslint-disable no-var */
 
 import { getEncoding } from "./encodings.js";
-import { isSpace } from "./core_utils.js";
+import { isWhiteSpace } from "./core_utils.js";
 import { Stream } from "./stream.js";
 import { warn } from "../shared/util.js";
 
@@ -79,6 +80,7 @@ var Type1CharString = (function Type1CharStringClosure() {
     hvcurveto: [31],
   };
 
+  // eslint-disable-next-line no-shadow
   function Type1CharString() {
     this.width = 0;
     this.lsb = 0;
@@ -231,7 +233,9 @@ var Type1CharString = (function Type1CharStringClosure() {
               // seac is like type 2's special endchar but it doesn't use the
               // first argument asb, so remove it.
               if (seacAnalysisEnabled) {
+                const asb = this.stack[this.stack.length - 5];
                 this.seac = this.stack.splice(-4, 4);
+                this.seac[0] += this.lsb - asb;
                 error = this.executeCommand(0, COMMAND_MAP.endchar);
               } else {
                 error = this.executeCommand(4, COMMAND_MAP.endchar);
@@ -436,7 +440,7 @@ var Type1Parser = (function Type1ParserClosure() {
         r = ((value + r) * c1 + c2) & ((1 << 16) - 1);
       }
     }
-    return Array.prototype.slice.call(decrypted, discardNumber, j);
+    return decrypted.slice(discardNumber, j);
   }
 
   function isSpecial(c) {
@@ -451,14 +455,19 @@ var Type1Parser = (function Type1ParserClosure() {
     );
   }
 
+  // eslint-disable-next-line no-shadow
   function Type1Parser(stream, encrypted, seacAnalysisEnabled) {
     if (encrypted) {
       var data = stream.getBytes();
       var isBinary = !(
-        isHexDigit(data[0]) &&
+        (isHexDigit(data[0]) || isWhiteSpace(data[0])) &&
         isHexDigit(data[1]) &&
         isHexDigit(data[2]) &&
-        isHexDigit(data[3])
+        isHexDigit(data[3]) &&
+        isHexDigit(data[4]) &&
+        isHexDigit(data[5]) &&
+        isHexDigit(data[6]) &&
+        isHexDigit(data[7])
       );
       stream = new Stream(
         isBinary
@@ -524,7 +533,7 @@ var Type1Parser = (function Type1ParserClosure() {
           }
         } else if (ch === /* '%' = */ 0x25) {
           comment = true;
-        } else if (!isSpace(ch)) {
+        } else if (!isWhiteSpace(ch)) {
           break;
         }
         ch = this.nextChar();
@@ -537,7 +546,7 @@ var Type1Parser = (function Type1ParserClosure() {
       do {
         token += String.fromCharCode(ch);
         ch = this.nextChar();
-      } while (ch >= 0 && !isSpace(ch) && !isSpecial(ch));
+      } while (ch >= 0 && !isWhiteSpace(ch) && !isSpecial(ch));
       return token;
     },
 
@@ -560,7 +569,7 @@ var Type1Parser = (function Type1ParserClosure() {
       var subrs = [],
         charstrings = [];
       var privateData = Object.create(null);
-      privateData["lenIV"] = 4;
+      privateData.lenIV = 4;
       var program = {
         subrs: [],
         charstrings: [],
@@ -595,7 +604,7 @@ var Type1Parser = (function Type1ParserClosure() {
               length = this.readInt();
               this.getToken(); // read in 'RD' or '-|'
               data = length > 0 ? stream.getBytes(length) : new Uint8Array(0);
-              lenIV = program.properties.privateData["lenIV"];
+              lenIV = program.properties.privateData.lenIV;
               encoded = this.readCharStrings(data, lenIV);
               this.nextChar();
               token = this.getToken(); // read in 'ND' or '|-'
@@ -612,11 +621,11 @@ var Type1Parser = (function Type1ParserClosure() {
             this.readInt(); // num
             this.getToken(); // read in 'array'
             while (this.getToken() === "dup") {
-              var index = this.readInt();
+              const index = this.readInt();
               length = this.readInt();
               this.getToken(); // read in 'RD' or '-|'
               data = length > 0 ? stream.getBytes(length) : new Uint8Array(0);
-              lenIV = program.properties.privateData["lenIV"];
+              lenIV = program.properties.privateData.lenIV;
               encoded = this.readCharStrings(data, lenIV);
               this.nextChar();
               token = this.getToken(); // read in 'NP' or '|'
@@ -679,13 +688,19 @@ var Type1Parser = (function Type1ParserClosure() {
           // here and put an endchar to make the validator happy.
           output = [14];
         }
-        program.charstrings.push({
+        const charStringObject = {
           glyphName: glyph,
           charstring: output,
           width: charString.width,
           lsb: charString.lsb,
           seac: charString.seac,
-        });
+        };
+        if (glyph === ".notdef") {
+          // Make sure .notdef is at index zero (issue #11477).
+          program.charstrings.unshift(charStringObject);
+        } else {
+          program.charstrings.push(charStringObject);
+        }
 
         // Attempt to replace missing widths, from the font dictionary /Widths
         // entry, with ones from the font data (fixes issue11150_reduced.pdf).

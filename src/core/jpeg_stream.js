@@ -13,19 +13,17 @@
  * limitations under the License.
  */
 
-import { createObjectURL, shadow } from "../shared/util.js";
 import { DecodeStream } from "./stream.js";
 import { isDict } from "./primitives.js";
 import { JpegImage } from "./jpg.js";
+import { shadow } from "../shared/util.js";
 
 /**
- * Depending on the type of JPEG a JpegStream is handled in different ways. For
- * JPEG's that are supported natively such as DeviceGray and DeviceRGB the image
- * data is stored and then loaded by the browser. For unsupported JPEG's we use
- * a library to decode these images and the stream behaves like all the other
- * DecodeStreams.
+ * For JPEG's we use a library to decode these images and the stream behaves
+ * like all the other DecodeStreams.
  */
 const JpegStream = (function JpegStreamClosure() {
+  // eslint-disable-next-line no-shadow
   function JpegStream(stream, maybeLength, dict, params) {
     // Some images may contain 'junk' before the SOI (start-of-image) marker.
     // Note: this seems to mainly affect inline images.
@@ -55,12 +53,12 @@ const JpegStream = (function JpegStreamClosure() {
     configurable: true,
   });
 
-  JpegStream.prototype.ensureBuffer = function(requested) {
+  JpegStream.prototype.ensureBuffer = function (requested) {
     // No-op, since `this.readBlock` will always parse the entire image and
     // directly insert all of its data into `this.buffer`.
   };
 
-  JpegStream.prototype.readBlock = function() {
+  JpegStream.prototype.readBlock = function () {
     if (this.eof) {
       return;
     }
@@ -107,10 +105,6 @@ const JpegStream = (function JpegStreamClosure() {
     this.buffer = data;
     this.bufferLength = data.length;
     this.eof = true;
-  };
-
-  JpegStream.prototype.getIR = function(forceDataSchema = false) {
-    return createObjectURL(this.bytes, "image/jpeg", forceDataSchema);
   };
 
   return JpegStream;

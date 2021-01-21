@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-import { getGlobalEventBus, NullL10n } from "./ui_utils.js";
 import { FindState } from "./pdf_find_controller.js";
+import { NullL10n } from "./ui_utils.js";
 
 const MATCHES_COUNT_LIMIT = 1000;
 
@@ -25,7 +25,7 @@ const MATCHES_COUNT_LIMIT = 1000;
  * is done by PDFFindController.
  */
 class PDFFindBar {
-  constructor(options, eventBus = getGlobalEventBus(), l10n = NullL10n) {
+  constructor(options, eventBus, l10n = NullL10n) {
     this.opened = false;
 
     this.bar = options.bar || null;
@@ -83,7 +83,7 @@ class PDFFindBar {
       this.dispatchEvent("entirewordchange");
     });
 
-    this.eventBus.on("resize", this._adjustWidth.bind(this));
+    this.eventBus._on("resize", this._adjustWidth.bind(this));
   }
 
   reset() {
@@ -104,7 +104,6 @@ class PDFFindBar {
   }
 
   updateUIState(state, previous, matchesCount) {
-    let notFound = false;
     let findMsg = "";
     let status = "";
 
@@ -118,7 +117,7 @@ class PDFFindBar {
 
       case FindState.NOT_FOUND:
         findMsg = this.l10n.get("find_not_found", null, "Phrase not found");
-        notFound = true;
+        status = "notFound";
         break;
 
       case FindState.WRAPPED:
@@ -137,8 +136,6 @@ class PDFFindBar {
         }
         break;
     }
-
-    this.findField.classList.toggle("notFound", notFound);
     this.findField.setAttribute("data-status", status);
 
     Promise.resolve(findMsg).then(msg => {

@@ -1,8 +1,8 @@
-# PDF.js [![Build Status](https://travis-ci.org/mozilla/pdf.js.svg?branch=master)](https://travis-ci.org/mozilla/pdf.js)
+# PDF.js [![Build Status](https://github.com/mozilla/pdf.js/workflows/CI/badge.svg?branch=master)](https://github.com/mozilla/pdf.js/actions?query=workflow%3ACI+branch%3Amaster)
 
 [PDF.js](https://mozilla.github.io/pdf.js/) is a Portable Document Format (PDF) viewer that is built with HTML5.
 
-PDF.js is community-driven and supported by Mozilla Labs. Our goal is to
+PDF.js is community-driven and supported by Mozilla. Our goal is to
 create a general-purpose, web standards-based platform for parsing and
 rendering PDFs.
 
@@ -17,11 +17,14 @@ get involved, visit:
 + [Good Beginner Bugs](https://github.com/mozilla/pdf.js/issues?direction=desc&labels=5-good-beginner-bug&page=1&sort=created&state=open)
 + [Projects](https://github.com/mozilla/pdf.js/projects)
 
-Feel free to stop by #pdfjs on irc.mozilla.org for questions or guidance.
+Feel free to stop by our [Matrix room](https://chat.mozilla.org/#/room/#pdfjs:mozilla.org) for questions or guidance.
 
 ## Getting Started
 
 ### Online demo
+
+Please note that the "Modern browsers" version assumes native support for
+features such as e.g. `async`/`await`, and `ReadableStream`.
 
 + Modern browsers: https://mozilla.github.io/pdf.js/web/viewer.html
 
@@ -72,12 +75,6 @@ Please keep in mind that this requires an ES6 compatible browser; refer to [Buil
 It is also possible to view all test PDF files on the right side by opening:
 
 + http://localhost:8888/test/pdfs/?frame
-
-## Online setup with a single click
-
-It's recommended to follow [Getting the Code] above, however you can also use [Gitpod](https://gitpod.io) (a free online VS Code like IDE). With a single click it will launch a ready to use workspace, with all the dependencies pre-installed and the web server running, so that you can start coding straight away.
-
-[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/mozilla/pdf.js)
 
 ## Building PDF.js
 
@@ -131,9 +128,9 @@ Check out our FAQs and get answers to common questions:
 
 + https://github.com/mozilla/pdf.js/wiki/Frequently-Asked-Questions
 
-Talk to us on IRC (Internet Relay Chat):
+Talk to us on Matrix:
 
-+ #pdfjs on irc.mozilla.org
++ https://chat.mozilla.org/#/room/#pdfjs:mozilla.org
 
 File an issue:
 

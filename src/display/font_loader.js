@@ -16,7 +16,7 @@
 import {
   assert,
   bytesToString,
-  isEvalSupported,
+  IsEvalSupportedCached,
   shadow,
   string32,
   unreachable,
@@ -25,12 +25,17 @@ import {
 } from "../shared/util.js";
 
 class BaseFontLoader {
-  constructor({ docId, onUnsupportedFeature }) {
+  constructor({
+    docId,
+    onUnsupportedFeature,
+    ownerDocument = globalThis.document,
+  }) {
     if (this.constructor === BaseFontLoader) {
       unreachable("Cannot initialize BaseFontLoader.");
     }
     this.docId = docId;
     this._onUnsupportedFeature = onUnsupportedFeature;
+    this._document = ownerDocument;
 
     this.nativeFontFaces = [];
     this.styleElement = null;
@@ -38,15 +43,15 @@ class BaseFontLoader {
 
   addNativeFontFace(nativeFontFace) {
     this.nativeFontFaces.push(nativeFontFace);
-    document.fonts.add(nativeFontFace);
+    this._document.fonts.add(nativeFontFace);
   }
 
   insertRule(rule) {
     let styleElement = this.styleElement;
     if (!styleElement) {
-      styleElement = this.styleElement = document.createElement("style");
+      styleElement = this.styleElement = this._document.createElement("style");
       styleElement.id = `PDFJS_FONT_STYLE_TAG_${this.docId}`;
-      document.documentElement
+      this._document.documentElement
         .getElementsByTagName("head")[0]
         .appendChild(styleElement);
     }
@@ -56,8 +61,8 @@ class BaseFontLoader {
   }
 
   clear() {
-    this.nativeFontFaces.forEach(function(nativeFontFace) {
-      document.fonts.delete(nativeFontFace);
+    this.nativeFontFaces.forEach(nativeFontFace => {
+      this._document.fonts.delete(nativeFontFace);
     });
     this.nativeFontFaces.length = 0;
 
@@ -71,7 +76,7 @@ class BaseFontLoader {
   async bind(font) {
     // Add the font to the DOM only once; skip if the font is already loaded.
     if (font.attached || font.missingFile) {
-      return undefined;
+      return;
     }
     font.attached = true;
 
@@ -82,7 +87,9 @@ class BaseFontLoader {
         try {
           await nativeFontFace.loaded;
         } catch (ex) {
-          this._onUnsupportedFeature({ featureId: UNSUPPORTED_FEATURES.font });
+          this._onUnsupportedFeature({
+            featureId: UNSUPPORTED_FEATURES.errorFontLoadNative,
+          });
           warn(`Failed to load font '${nativeFontFace.family}': '${ex}'.`);
 
           // When font loading failed, fall back to the built-in font renderer.
@@ -90,7 +97,7 @@ class BaseFontLoader {
           throw ex;
         }
       }
-      return undefined; // The font was, asynchronously, loaded.
+      return; // The font was, asynchronously, loaded.
     }
 
     // !this.isFontLoadingAPISupported
@@ -99,23 +106,22 @@ class BaseFontLoader {
       this.insertRule(rule);
 
       if (this.isSyncFontLoadingSupported) {
-        return undefined; // The font was, synchronously, loaded.
+        return; // The font was, synchronously, loaded.
       }
-      return new Promise(resolve => {
+      await new Promise(resolve => {
         const request = this._queueLoadingCallback(resolve);
         this._prepareFontLoadEvent([rule], [font], request);
       });
+      // The font was, asynchronously, loaded.
     }
-    return undefined;
   }
 
   _queueLoadingCallback(callback) {
     unreachable("Abstract method `_queueLoadingCallback`.");
   }
 
-  // eslint-disable-next-line getter-return
   get isFontLoadingAPISupported() {
-    unreachable("Abstract method `isFontLoadingAPISupported`.");
+    return shadow(this, "isFontLoadingAPISupported", !!this._document?.fonts);
   }
 
   // eslint-disable-next-line getter-return
@@ -136,14 +142,6 @@ class BaseFontLoader {
 let FontLoader;
 if (typeof PDFJSDev !== "undefined" && PDFJSDev.test("MOZCENTRAL")) {
   FontLoader = class MozcentralFontLoader extends BaseFontLoader {
-    get isFontLoadingAPISupported() {
-      return shadow(
-        this,
-        "isFontLoadingAPISupported",
-        typeof document !== "undefined" && !!document.fonts
-      );
-    }
-
     get isSyncFontLoadingSupported() {
       return shadow(this, "isSyncFontLoadingSupported", true);
     }
@@ -152,31 +150,13 @@ if (typeof PDFJSDev !== "undefined" && PDFJSDev.test("MOZCENTRAL")) {
   // PDFJSDev.test('CHROME || GENERIC')
 
   FontLoader = class GenericFontLoader extends BaseFontLoader {
-    constructor(docId) {
-      super(docId);
+    constructor(params) {
+      super(params);
       this.loadingContext = {
         requests: [],
         nextRequestId: 0,
       };
       this.loadTestFontId = 0;
-    }
-
-    get isFontLoadingAPISupported() {
-      let supported = typeof document !== "undefined" && !!document.fonts;
-
-      if (
-        (typeof PDFJSDev === "undefined" || !PDFJSDev.test("CHROME")) &&
-        supported &&
-        typeof navigator !== "undefined"
-      ) {
-        // The Firefox Font Loading API does not work with `mozPrintCallback`
-        // prior to version 63; see https://bugzilla.mozilla.org/show_bug.cgi?id=1473742
-        const m = /Mozilla\/5.0.*?rv:(\d+).*? Gecko/.exec(navigator.userAgent);
-        if (m && m[1] < 63) {
-          supported = false;
-        }
-      }
-      return shadow(this, "isFontLoadingAPISupported", supported);
     }
 
     get isSyncFontLoadingSupported() {
@@ -191,7 +171,7 @@ if (typeof PDFJSDev !== "undefined" && PDFJSDev.test("MOZCENTRAL")) {
           const m = /Mozilla\/5.0.*?rv:(\d+).*? Gecko/.exec(
             navigator.userAgent
           );
-          if (m && m[1] >= 14) {
+          if (m?.[1] >= 14) {
             supported = true;
           }
           // TODO - other browsers...
@@ -224,7 +204,7 @@ if (typeof PDFJSDev !== "undefined" && PDFJSDev.test("MOZCENTRAL")) {
     }
 
     get _loadTestFont() {
-      const getLoadTestFont = function() {
+      const getLoadTestFont = function () {
         // This is a CFF font with 1 glyph for '.' that fills its entire width
         // and height.
         return atob(
@@ -278,7 +258,7 @@ if (typeof PDFJSDev !== "undefined" && PDFJSDev.test("MOZCENTRAL")) {
       let i, ii;
 
       // The temporary canvas is used to determine if fonts are loaded.
-      const canvas = document.createElement("canvas");
+      const canvas = this._document.createElement("canvas");
       canvas.width = 1;
       canvas.height = 1;
       const ctx = canvas.getContext("2d");
@@ -340,34 +320,28 @@ if (typeof PDFJSDev !== "undefined" && PDFJSDev.test("MOZCENTRAL")) {
       }
       names.push(loadTestFontId);
 
-      const div = document.createElement("div");
+      const div = this._document.createElement("div");
       div.style.visibility = "hidden";
       div.style.width = div.style.height = "10px";
       div.style.position = "absolute";
       div.style.top = div.style.left = "0px";
 
       for (i = 0, ii = names.length; i < ii; ++i) {
-        const span = document.createElement("span");
+        const span = this._document.createElement("span");
         span.textContent = "Hi";
         span.style.fontFamily = names[i];
         div.appendChild(span);
       }
-      document.body.appendChild(div);
+      this._document.body.appendChild(div);
 
-      isFontReady(loadTestFontId, function() {
-        document.body.removeChild(div);
+      isFontReady(loadTestFontId, () => {
+        this._document.body.removeChild(div);
         request.complete();
       });
       /** Hack end */
     }
   };
 } // End of PDFJSDev.test('CHROME || GENERIC')
-
-const IsEvalSupportedCached = {
-  get value() {
-    return shadow(this, "value", isEvalSupported());
-  },
-};
 
 class FontFaceObject {
   constructor(
@@ -432,11 +406,13 @@ class FontFaceObject {
         throw ex;
       }
       if (this._onUnsupportedFeature) {
-        this._onUnsupportedFeature({ featureId: UNSUPPORTED_FEATURES.font });
+        this._onUnsupportedFeature({
+          featureId: UNSUPPORTED_FEATURES.errorFontGetPath,
+        });
       }
       warn(`getPathGenerator - ignoring character: "${ex}".`);
 
-      return (this.compiledGlyphs[character] = function(c, size) {
+      return (this.compiledGlyphs[character] = function (c, size) {
         // No-op function, to allow rendering to continue.
       });
     }
@@ -460,7 +436,7 @@ class FontFaceObject {
     }
     // ... but fall back on using Function.prototype.apply() if we're
     // blocked from using eval() for whatever reason (like CSP policies).
-    return (this.compiledGlyphs[character] = function(c, size) {
+    return (this.compiledGlyphs[character] = function (c, size) {
       for (let i = 0, ii = cmds.length; i < ii; i++) {
         current = cmds[i];
 

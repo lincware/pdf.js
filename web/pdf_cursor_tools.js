@@ -14,6 +14,7 @@
  */
 
 import { GrabToPan } from "./grab_to_pan.js";
+import { PresentationModeState } from "./ui_utils.js";
 
 const CursorTool = {
   SELECT: 0, // The default value.
@@ -122,26 +123,28 @@ class PDFCursorTools {
    * @private
    */
   _addEventListeners() {
-    this.eventBus.on("switchcursortool", evt => {
+    this.eventBus._on("switchcursortool", evt => {
       this.switchTool(evt.tool);
     });
 
-    this.eventBus.on("presentationmodechanged", evt => {
-      if (evt.switchInProgress) {
-        return;
-      }
-      let previouslyActive;
+    this.eventBus._on("presentationmodechanged", evt => {
+      switch (evt.state) {
+        case PresentationModeState.CHANGING:
+          break;
+        case PresentationModeState.FULLSCREEN: {
+          const previouslyActive = this.active;
 
-      if (evt.active) {
-        previouslyActive = this.active;
+          this.switchTool(CursorTool.SELECT);
+          this.activeBeforePresentationMode = previouslyActive;
+          break;
+        }
+        case PresentationModeState.NORMAL: {
+          const previouslyActive = this.activeBeforePresentationMode;
 
-        this.switchTool(CursorTool.SELECT);
-        this.activeBeforePresentationMode = previouslyActive;
-      } else {
-        previouslyActive = this.activeBeforePresentationMode;
-
-        this.activeBeforePresentationMode = null;
-        this.switchTool(previouslyActive);
+          this.activeBeforePresentationMode = null;
+          this.switchTool(previouslyActive);
+          break;
+        }
       }
     });
   }

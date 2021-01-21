@@ -44,13 +44,13 @@ class MockLinkService extends SimpleLinkService {
   }
 }
 
-describe("pdf_find_controller", function() {
+describe("pdf_find_controller", function () {
   let eventBus;
   let pdfFindController;
 
-  beforeEach(function(done) {
+  beforeEach(function (done) {
     const loadingTask = getDocument(buildGetDocumentParams("tracemonkey.pdf"));
-    loadingTask.promise.then(function(pdfDocument) {
+    loadingTask.promise.then(function (pdfDocument) {
       eventBus = new EventBus();
 
       const linkService = new MockLinkService();
@@ -66,13 +66,13 @@ describe("pdf_find_controller", function() {
     });
   });
 
-  afterEach(function() {
+  afterEach(function () {
     eventBus = null;
     pdfFindController = null;
   });
 
   function testSearch({ parameters, matchesPerPage, selectedMatch }) {
-    return new Promise(function(resolve) {
+    return new Promise(function (resolve) {
       pdfFindController.executeCommand("find", parameters);
 
       // The `updatefindmatchescount` event is only emitted if the page contains
@@ -98,33 +98,34 @@ describe("pdf_find_controller", function() {
         return a + b;
       });
 
-      eventBus.on("updatefindmatchescount", function onUpdateFindMatchesCount(
-        evt
-      ) {
-        if (pdfFindController.pageMatches.length !== totalPages) {
-          return;
-        }
-        eventBus.off("updatefindmatchescount", onUpdateFindMatchesCount);
+      eventBus.on(
+        "updatefindmatchescount",
+        function onUpdateFindMatchesCount(evt) {
+          if (pdfFindController.pageMatches.length !== totalPages) {
+            return;
+          }
+          eventBus.off("updatefindmatchescount", onUpdateFindMatchesCount);
 
-        expect(evt.matchesCount.total).toBe(totalMatches);
-        for (let i = 0; i < totalPages; i++) {
-          expect(pdfFindController.pageMatches[i].length).toEqual(
-            matchesPerPage[i]
+          expect(evt.matchesCount.total).toBe(totalMatches);
+          for (let i = 0; i < totalPages; i++) {
+            expect(pdfFindController.pageMatches[i].length).toEqual(
+              matchesPerPage[i]
+            );
+          }
+          expect(pdfFindController.selected.pageIdx).toEqual(
+            selectedMatch.pageIndex
           );
-        }
-        expect(pdfFindController.selected.pageIdx).toEqual(
-          selectedMatch.pageIndex
-        );
-        expect(pdfFindController.selected.matchIdx).toEqual(
-          selectedMatch.matchIndex
-        );
+          expect(pdfFindController.selected.matchIdx).toEqual(
+            selectedMatch.matchIndex
+          );
 
-        resolve();
-      });
+          resolve();
+        }
+      );
     });
   }
 
-  it("performs a normal search", function(done) {
+  it("performs a normal search", function (done) {
     testSearch({
       parameters: {
         query: "Dynamic",
@@ -141,7 +142,7 @@ describe("pdf_find_controller", function() {
     }).then(done);
   });
 
-  it("performs a normal search and finds the previous result", function(done) {
+  it("performs a normal search and finds the previous result", function (done) {
     // Page 14 (with page index 13) contains five results. By default, the
     // first result (match index 0) is selected, so the previous result
     // should be the fifth result (match index 4).
@@ -161,7 +162,7 @@ describe("pdf_find_controller", function() {
     }).then(done);
   });
 
-  it("performs a case sensitive search", function(done) {
+  it("performs a case sensitive search", function (done) {
     testSearch({
       parameters: {
         query: "Dynamic",
@@ -178,7 +179,7 @@ describe("pdf_find_controller", function() {
     }).then(done);
   });
 
-  it("performs an entire word search", function(done) {
+  it("performs an entire word search", function (done) {
     // Page 13 contains both 'Government' and 'Governmental', so the latter
     // should not be found with entire word search.
     testSearch({
@@ -197,7 +198,7 @@ describe("pdf_find_controller", function() {
     }).then(done);
   });
 
-  it("performs a multiple term (no phrase) search", function(done) {
+  it("performs a multiple term (no phrase) search", function (done) {
     // Page 9 contains 'alternate' and pages 6 and 9 contain 'solution'.
     // Both should be found for multiple term (no phrase) search.
     testSearch({

@@ -12,6 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/* eslint-disable no-var */
 
 import {
   bytesToString,
@@ -345,12 +346,7 @@ var FontRendererFactory = (function FontRendererFactoryClosure() {
     }
   }
 
-  function compileCharString(code, cmds, font, glyphId) {
-    var stack = [];
-    var x = 0,
-      y = 0;
-    var stems = 0;
-
+  function compileCharString(charStringCode, cmds, font, glyphId) {
     function moveTo(x, y) {
       cmds.push({ cmd: "moveTo", args: [x, y] });
     }
@@ -360,6 +356,11 @@ var FontRendererFactory = (function FontRendererFactoryClosure() {
     function bezierCurveTo(x1, y1, x2, y2, x, y) {
       cmds.push({ cmd: "bezierCurveTo", args: [x1, y1, x2, y2, x, y] });
     }
+
+    var stack = [];
+    var x = 0,
+      y = 0;
+    var stems = 0;
 
     function parse(code) {
       var i = 0;
@@ -719,7 +720,7 @@ var FontRendererFactory = (function FontRendererFactoryClosure() {
         }
       }
     }
-    parse(code);
+    parse(charStringCode);
   }
 
   const NOOP = [];
