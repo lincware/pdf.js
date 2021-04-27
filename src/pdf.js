@@ -12,11 +12,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/* eslint-disable sort-exports/sort-exports */
 
 import {
   addLinkAttributes,
   getFilenameFromUrl,
+  getPdfFilenameFromUrl,
   isFetchSupported,
+  isPdfFile,
   isValidFetchUrl,
   LinkTarget,
   loadScript,
@@ -54,6 +57,7 @@ import { apiCompatibilityParams } from "./display/api_compatibility.js";
 import { GlobalWorkerOptions } from "./display/worker_options.js";
 import { renderTextLayer } from "./display/text_layer.js";
 import { SVGGraphics } from "./display/svg.js";
+import { XfaLayer } from "./display/xfa_layer.js";
 
 /* eslint-disable-next-line no-unused-vars */
 const pdfjsVersion =
@@ -127,6 +131,8 @@ export {
   // From "./display/display_utils.js":
   addLinkAttributes,
   getFilenameFromUrl,
+  getPdfFilenameFromUrl,
+  isPdfFile,
   LinkTarget,
   loadScript,
   PDFDateString,
@@ -164,4 +170,6 @@ export {
   renderTextLayer,
   // From "./display/svg.js":
   SVGGraphics,
+  // From "./display/xfa_layer.js":
+  XfaLayer,
 };

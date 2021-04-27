@@ -16,8 +16,10 @@
 const { clearInput, closePages, loadAndWait } = require("./test_utils.js");
 
 describe("Interaction", () => {
-  async function actAndWaitForInput(page, selector, action) {
-    await clearInput(page, selector);
+  async function actAndWaitForInput(page, selector, action, clear = true) {
+    if (clear) {
+      await clearInput(page, selector);
+    }
     await action();
     await page.waitForFunction(
       `document.querySelector("${selector.replace("\\", "\\\\")}").value !== ""`
@@ -172,8 +174,14 @@ describe("Interaction", () => {
     it("must reset all", async () => {
       await Promise.all(
         pages.map(async ([browserName, page]) => {
+          // click on a radio button
+          await page.click("[data-annotation-id='449R']");
+
           // this field has no actions but it must be cleared on reset
           await page.type("#\\34 05R", "employee", { delay: 200 });
+
+          let checked = await page.$eval("#\\34 49R", el => el.checked);
+          expect(checked).toEqual(true);
 
           // click on reset button
           await page.click("[data-annotation-id='402R']");
@@ -192,6 +200,9 @@ describe("Interaction", () => {
 
           const sum = await page.$eval("#\\34 27R", el => el.value);
           expect(sum).toEqual("");
+
+          checked = await page.$eval("#\\34 49R", el => el.checked);
+          expect(checked).toEqual(false);
         })
       );
     });
@@ -216,20 +227,20 @@ describe("Interaction", () => {
           );
 
           const expected = [
-            ["#\\36 8R", "Group1=Choice1::1"],
-            ["#\\36 9R", "Group1=Choice2::2"],
-            ["#\\37 0R", "Group1=Choice3::3"],
-            ["#\\37 1R", "Group1=Choice4::4"],
+            ["#\\38 1R", "Group1=Choice1::1"],
+            ["#\\38 2R", "Group1=Choice2::2"],
+            ["#\\38 3R", "Group1=Choice3::3"],
+            ["#\\38 4R", "Group1=Choice4::4"],
           ];
           for (const [selector, expectedText] of expected) {
             // Clear the textfield
-            await clearInput(page, "#\\36 7R");
+            await clearInput(page, "#\\38 0R");
 
             await page.click(selector);
             await page.waitForFunction(
-              `document.querySelector("#\\\\36 7R").value !== ""`
+              `document.querySelector("#\\\\38 0R").value !== ""`
             );
-            const text = await page.$eval("#\\36 7R", el => el.value);
+            const text = await page.$eval("#\\38 0R", el => el.value);
             expect(text).withContext(`In ${browserName}`).toEqual(expectedText);
           }
         })
@@ -240,24 +251,24 @@ describe("Interaction", () => {
       await Promise.all(
         pages.map(async ([browserName, page]) => {
           const expected = [
-            ["#\\37 2R", "Check1=Yes::5"],
-            ["#\\37 4R", "Check2=Yes::6"],
-            ["#\\37 5R", "Check3=Yes::7"],
-            ["#\\37 6R", "Check4=Yes::8"],
-            ["#\\37 2R", "Check1=Off::5"],
-            ["#\\37 4R", "Check2=Off::6"],
-            ["#\\37 5R", "Check3=Off::7"],
-            ["#\\37 6R", "Check4=Off::8"],
+            ["#\\38 5R", "Check1=Yes::5"],
+            ["#\\38 7R", "Check2=Yes::6"],
+            ["#\\38 8R", "Check3=Yes::7"],
+            ["#\\38 9R", "Check4=Yes::8"],
+            ["#\\38 5R", "Check1=Off::5"],
+            ["#\\38 7R", "Check2=Off::6"],
+            ["#\\38 8R", "Check3=Off::7"],
+            ["#\\38 9R", "Check4=Off::8"],
           ];
           for (const [selector, expectedText] of expected) {
             // Clear the textfield
-            await clearInput(page, "#\\36 7R");
+            await clearInput(page, "#\\38 0R");
 
             await page.click(selector);
             await page.waitForFunction(
-              `document.querySelector("#\\\\36 7R").value !== ""`
+              `document.querySelector("#\\\\38 0R").value !== ""`
             );
-            const text = await page.$eval("#\\36 7R", el => el.value);
+            const text = await page.$eval("#\\38 0R", el => el.value);
             expect(text).withContext(`In ${browserName}`).toEqual(expectedText);
           }
         })
@@ -268,21 +279,51 @@ describe("Interaction", () => {
       await Promise.all(
         pages.map(async ([browserName, page]) => {
           const expected = [
-            ["#\\37 7R", "Check5=Yes1::9"],
-            ["#\\37 8R", "Check5=Yes2::10"],
-            ["#\\37 9R", "Check5=Yes3::11"],
-            ["#\\38 0R", "Check5=Yes4::12"],
-            ["#\\38 0R", "Check5=Off::12"],
+            ["#\\39 0R", "Check5=Yes1::9"],
+            ["#\\39 1R", "Check5=Yes2::10"],
+            ["#\\39 2R", "Check5=Yes3::11"],
+            ["#\\39 3R", "Check5=Yes4::12"],
+            ["#\\39 3R", "Check5=Off::12"],
           ];
           for (const [selector, expectedText] of expected) {
             // Clear the textfield
-            await clearInput(page, "#\\36 7R");
+            await clearInput(page, "#\\38 0R");
 
             await page.click(selector);
             await page.waitForFunction(
-              `document.querySelector("#\\\\36 7R").value !== ""`
+              `document.querySelector("#\\\\38 0R").value !== ""`
             );
-            const text = await page.$eval("#\\36 7R", el => el.value);
+            const text = await page.$eval("#\\38 0R", el => el.value);
+            expect(text).withContext(`In ${browserName}`).toEqual(expectedText);
+          }
+        })
+      );
+    });
+
+    it("must show values in a text input when clicking on checkboxes or radio with no actions", async () => {
+      await Promise.all(
+        pages.map(async ([browserName, page]) => {
+          const expected = [
+            ["", "Off;Off"],
+            ["#\\39 4R", "Yes;Off"],
+            ["#\\39 5R", "Yes;NoAct2"],
+            ["#\\39 6R", "Yes;NoAct3"],
+            ["#\\39 4R", "Off;NoAct3"],
+            ["#\\39 5R", "Off;NoAct2"],
+          ];
+          for (const [selector, expectedText] of expected) {
+            // Clear the textfield
+            await clearInput(page, "#\\38 0R");
+
+            if (selector) {
+              await page.click(selector);
+            }
+
+            await page.click("[data-annotation-id='97R']");
+            await page.waitForFunction(
+              `document.querySelector("#\\\\38 0R").value !== ""`
+            );
+            const text = await page.$eval("#\\38 0R", el => el.value);
             expect(text).withContext(`In ${browserName}`).toEqual(expectedText);
           }
         })
@@ -307,6 +348,18 @@ describe("Interaction", () => {
           if (process.platform === "win32" && browserName === "firefox") {
             pending("Disabled in Firefox on Windows, because of bug 1662471.");
           }
+          await page.waitForFunction(
+            "window.PDFViewerApplication.scriptingReady === true"
+          );
+
+          await clearInput(page, "#\\34 7R");
+          await page.evaluate(_ => {
+            window.document.activeElement.blur();
+          });
+          await page.waitForFunction(
+            `document.querySelector("#\\\\34 7R").value === ""`
+          );
+
           let text = await actAndWaitForInput(page, "#\\34 7R", async () => {
             await page.click("#print");
           });
@@ -337,6 +390,10 @@ describe("Interaction", () => {
     it("must execute WillSave and DidSave actions", async () => {
       await Promise.all(
         pages.map(async ([browserName, page]) => {
+          await page.waitForFunction(
+            "window.PDFViewerApplication.scriptingReady === true"
+          );
+
           try {
             // Disable download in chrome
             // (it leads to an error in firefox so the try...)
@@ -345,6 +402,13 @@ describe("Interaction", () => {
             });
           } catch (_) {}
           await clearInput(page, "#\\34 7R");
+          await page.evaluate(_ => {
+            window.document.activeElement.blur();
+          });
+          await page.waitForFunction(
+            `document.querySelector("#\\\\34 7R").value === ""`
+          );
+
           let text = await actAndWaitForInput(page, "#\\34 7R", async () => {
             await page.click("#download");
           });
@@ -356,6 +420,344 @@ describe("Interaction", () => {
 
           text = await page.$eval("#\\35 0R", el => el.value);
           expect(text).withContext(`In ${browserName}`).toEqual("DidSave");
+        })
+      );
+    });
+  });
+
+  describe("in doc_actions.pdf for page actions", () => {
+    let pages;
+
+    beforeAll(async () => {
+      pages = await loadAndWait("doc_actions.pdf", "#\\34 7R");
+    });
+
+    afterAll(async () => {
+      await closePages(pages);
+    });
+
+    it("must execute PageOpen and PageClose actions", async () => {
+      await Promise.all(
+        pages.map(async ([browserName, page]) => {
+          await page.waitForFunction(
+            "window.PDFViewerApplication.scriptingReady === true"
+          );
+
+          let text = await page.$eval("#\\34 7R", el => el.value);
+          expect(text).withContext(`In ${browserName}`).toEqual("PageOpen 1");
+
+          for (let run = 0; run < 5; run++) {
+            for (const ref of [18, 19, 20, 21, 47, 50]) {
+              await page.evaluate(refElem => {
+                const element = window.document.getElementById(`${refElem}R`);
+                if (element) {
+                  element.value = "";
+                }
+              }, ref);
+            }
+
+            for (const [refOpen, refClose, pageNumOpen, pageNumClose] of [
+              [18, 50, 2, 1],
+              [21, 19, 3, 2],
+              [47, 20, 1, 3],
+            ]) {
+              text = await actAndWaitForInput(
+                page,
+                `#\\3${Math.floor(refOpen / 10)} ${refOpen % 10}R`,
+                async () => {
+                  await page.evaluate(refElem => {
+                    window.document
+                      .getElementById(`${refElem}R`)
+                      .scrollIntoView();
+                  }, refOpen);
+                },
+                false
+              );
+              expect(text)
+                .withContext(`In ${browserName}`)
+                .toEqual(`PageOpen ${pageNumOpen}`);
+
+              text = await page.$eval(
+                `#\\3${Math.floor(refClose / 10)} ${refClose % 10}R`,
+                el => el.value
+              );
+              expect(text)
+                .withContext(`In ${browserName}`)
+                .toEqual(`PageClose ${pageNumClose}`);
+            }
+          }
+        })
+      );
+    });
+  });
+
+  describe("in js-authors.pdf", () => {
+    let pages;
+
+    beforeAll(async () => {
+      pages = await loadAndWait("js-authors.pdf", "#\\32 5R");
+    });
+
+    it("must print authors in a text field", async () => {
+      await Promise.all(
+        pages.map(async ([browserName, page]) => {
+          const text = await actAndWaitForInput(page, "#\\32 5R", async () => {
+            await page.click("[data-annotation-id='26R']");
+          });
+          expect(text)
+            .withContext(`In ${browserName}`)
+            .toEqual("author1::author2::author3::author4::author5");
+        })
+      );
+    });
+  });
+
+  describe("in listbox_actions.pdf", () => {
+    let pages;
+
+    beforeAll(async () => {
+      pages = await loadAndWait("listbox_actions.pdf", "#\\33 3R");
+    });
+
+    afterAll(async () => {
+      await closePages(pages);
+    });
+
+    it("must print selected value in a text field", async () => {
+      await Promise.all(
+        pages.map(async ([browserName, page]) => {
+          for (const num of [7, 6, 4, 3, 2, 1]) {
+            await page.click(`option[value=Export${num}]`);
+            await page.waitForFunction(
+              `document.querySelector("#\\\\33 3R").value !== ""`
+            );
+            const text = await page.$eval("#\\33 3R", el => el.value);
+            expect(text)
+              .withContext(`In ${browserName}`)
+              .toEqual(`Item${num},Export${num}`);
+          }
+        })
+      );
+    });
+
+    it("must clear and restore list elements", async () => {
+      await Promise.all(
+        pages.map(async ([browserName, page]) => {
+          // Click on ClearItems button.
+          await page.click("[data-annotation-id='34R']");
+          await page.waitForFunction(
+            `document.querySelector("#\\\\33 0R").children.length === 0`
+          );
+
+          // Click on Restore button.
+          await page.click("[data-annotation-id='37R']");
+          await page.waitForFunction(
+            `document.querySelector("#\\\\33 0R").children.length !== 0`
+          );
+
+          for (const num of [7, 6, 4, 3, 2, 1]) {
+            await page.click(`option[value=Export${num}]`);
+            await page.waitForFunction(
+              `document.querySelector("#\\\\33 3R").value !== ""`
+            );
+            const text = await page.$eval("#\\33 3R", el => el.value);
+            expect(text)
+              .withContext(`In ${browserName}`)
+              .toEqual(`Item${num},Export${num}`);
+          }
+        })
+      );
+    });
+
+    it("must insert new elements", async () => {
+      await Promise.all(
+        pages.map(async ([browserName, page]) => {
+          let len = 6;
+          for (const num of [1, 3, 5, 6, 431, -1, 0]) {
+            ++len;
+            await clearInput(page, "#\\33 9R");
+            await page.type("#\\33 9R", `${num},Insert${num},Tresni${num}`, {
+              delay: 10,
+            });
+
+            // Click on AddItem button.
+            await page.click("[data-annotation-id='38R']");
+
+            await page.waitForFunction(
+              `document.querySelector("#\\\\33 0R").children.length === ${len}`
+            );
+
+            // Click on newly added option.
+            await page.select("#\\33 0R", `Tresni${num}`);
+
+            await page.waitForFunction(
+              `document.querySelector("#\\\\33 3R").value !== ""`
+            );
+            const text = await page.$eval("#\\33 3R", el => el.value);
+            expect(text)
+              .withContext(`In ${browserName}`)
+              .toEqual(`Insert${num},Tresni${num}`);
+          }
+        })
+      );
+    });
+
+    it("must delete some element", async () => {
+      await Promise.all(
+        pages.map(async ([browserName, page]) => {
+          let len = 6;
+          // Click on Restore button.
+          await page.click("[data-annotation-id='37R']");
+          await page.waitForFunction(
+            `document.querySelector("#\\\\33 0R").children.length === ${len}`
+          );
+
+          for (const num of [2, 5]) {
+            --len;
+            await clearInput(page, "#\\33 9R");
+            await page.type("#\\33 9R", `${num}`);
+
+            // Click on DeleteItem button.
+            await page.click("[data-annotation-id='36R']");
+
+            await page.waitForFunction(
+              `document.querySelector("#\\\\33 0R").children.length === ${len}`
+            );
+          }
+
+          for (const num of [6, 4, 2, 1]) {
+            await page.click(`option[value=Export${num}]`);
+            await page.waitForFunction(
+              `document.querySelector("#\\\\33 3R").value !== ""`
+            );
+            const text = await page.$eval("#\\33 3R", el => el.value);
+            expect(text)
+              .withContext(`In ${browserName}`)
+              .toEqual(`Item${num},Export${num}`);
+          }
+        })
+      );
+    });
+  });
+
+  describe("in js-colors.pdf", () => {
+    let pages;
+
+    beforeAll(async () => {
+      pages = await loadAndWait("js-colors.pdf", "#\\33 4R");
+    });
+
+    it("must change colors", async () => {
+      await Promise.all(
+        pages.map(async ([browserName, page]) => {
+          for (const [name, ref] of [
+            ["Text1", "#\\33 4R"],
+            ["Check1", "#\\33 5R"],
+            ["Radio1", "#\\33 7R"],
+            ["Choice1", "#\\33 8R"],
+          ]) {
+            await clearInput(page, "#\\33 4R");
+            await page.type("#\\33 4R", `${name}`, {
+              delay: 10,
+            });
+
+            for (const [id, propName, expected] of [
+              [41, "backgroundColor", "rgb(255, 0, 0)"],
+              [43, "color", "rgb(0, 255, 0)"],
+              [44, "border-top-color", "rgb(0, 0, 255)"],
+            ]) {
+              const current = await page.$eval(
+                ref,
+                (el, _propName) => getComputedStyle(el)[_propName],
+                propName
+              );
+
+              await page.click(`[data-annotation-id='${id}R']`);
+              await page.waitForFunction(
+                (_ref, _current, _propName) =>
+                  getComputedStyle(document.querySelector(_ref))[_propName] !==
+                  _current,
+                {},
+                ref,
+                current,
+                propName
+              );
+
+              const color = await page.$eval(
+                ref,
+                (el, _propName) => getComputedStyle(el)[_propName],
+                propName
+              );
+              expect(color).withContext(`In ${browserName}`).toEqual(expected);
+            }
+          }
+        })
+      );
+    });
+  });
+
+  describe("in issue13132.pdf", () => {
+    let pages;
+
+    beforeAll(async () => {
+      pages = await loadAndWait("issue13132.pdf", "#\\31 71R");
+    });
+
+    afterAll(async () => {
+      await closePages(pages);
+    });
+
+    it("must compute sum of fields", async () => {
+      await Promise.all(
+        pages.map(async ([browserName, page]) => {
+          await page.waitForFunction(
+            "window.PDFViewerApplication.scriptingReady === true"
+          );
+
+          await page.evaluate(() => {
+            window.document.getElementById("171R").scrollIntoView();
+          });
+
+          let sum = 0;
+          for (const [id, val] of [
+            ["#\\31 38R", 1],
+            ["#\\37 7R", 2],
+            ["#\\39 3R", 3],
+            ["#\\31 51R", 4],
+            ["#\\37 9R", 5],
+          ]) {
+            const prev = await page.$eval("#\\31 71R", el => el.value);
+
+            await page.type(id, val.toString(), { delay: 100 });
+            await page.keyboard.press("Tab");
+
+            await page.waitForFunction(
+              _prev =>
+                getComputedStyle(document.querySelector("#\\31 71R")).value !==
+                _prev,
+              {},
+              prev
+            );
+
+            sum += val;
+
+            const total = await page.$eval("#\\31 71R", el => el.value);
+            expect(total).withContext(`In ${browserName}`).toEqual(`£${sum}`);
+          }
+
+          // Some unrendered annotations have been updated, so check
+          // that they've the correct value when rendered.
+          await page.evaluate(() => {
+            window.document
+              .querySelectorAll('[data-page-number="4"][class="page"]')[0]
+              .scrollIntoView();
+          });
+          await page.waitForSelector("#\\32 99R", {
+            timeout: 0,
+          });
+
+          const total = await page.$eval("#\\32 99R", el => el.value);
+          expect(total).withContext(`In ${browserName}`).toEqual(`£${sum}`);
         })
       );
     });

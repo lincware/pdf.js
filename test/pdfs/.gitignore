@@ -6,6 +6,7 @@
 !TrueType_without_cmap.pdf
 !franz.pdf
 !franz_2.pdf
+!fraction-highlight.pdf
 !german-umlaut-r.pdf
 !xref_command_missing.pdf
 !issue1155r.pdf
@@ -70,10 +71,13 @@
 !issue8570.pdf
 !issue8697.pdf
 !issue8702.pdf
+!structure_simple.pdf
+!issue12823.pdf
 !issue8707.pdf
 !issue8798r.pdf
 !issue8823.pdf
 !issue9084.pdf
+!issue12963.pdf
 !issue9105_reduced.pdf
 !issue9252.pdf
 !issue9262_reduced.pdf
@@ -82,6 +86,7 @@
 !issue9458.pdf
 !issue9655_reduced.pdf
 !issue9915_reduced.pdf
+!bug854315.pdf
 !issue9940.pdf
 !issue10388_reduced.pdf
 !issue10438_reduced.pdf
@@ -92,6 +97,7 @@
 !issue11045.pdf
 !bug1057544.pdf
 !issue11150_reduced.pdf
+!issue6127.pdf
 !issue11242_reduced.pdf
 !issue11279.pdf
 !issue11362.pdf
@@ -113,6 +119,7 @@
 !bug1050040.pdf
 !bug1200096.pdf
 !bug1068432.pdf
+!issue12295.pdf
 !bug1146106.pdf
 !bug1245391_reduced.pdf
 !bug1252420.pdf
@@ -153,6 +160,7 @@
 !issue6019.pdf
 !issue6621.pdf
 !issue6286.pdf
+!issue13107_reduced.pdf
 !issue1055r.pdf
 !issue11713.pdf
 !issue1293r.pdf
@@ -173,6 +181,7 @@
 !images_1bit_grayscale.pdf
 !issue5280.pdf
 !issue12399_reduced.pdf
+!annotation-ink-without-appearance.pdf
 !issue5677.pdf
 !issue5954.pdf
 !issue6612.pdf
@@ -240,6 +249,9 @@
 !personwithdog.pdf
 !helloworld-bad.pdf
 !zerowidthline.pdf
+!js-colors.pdf
+!annotation-line-without-appearance-empty-Rect.pdf
+!issue12841_reduced.pdf
 !bug868745.pdf
 !mmtype1.pdf
 !issue4436r.pdf
@@ -275,6 +287,7 @@
 !gradientfill.pdf
 !bug903856.pdf
 !bug850854.pdf
+!issue12810.pdf
 !bug866395.pdf
 !issue12010_reduced.pdf
 !issue11718_reduced.pdf
@@ -323,10 +336,12 @@
 !tensor-allflags-withfunction.pdf
 !issue10084_reduced.pdf
 !issue4246.pdf
+!js-authors.pdf
 !issue4461.pdf
 !issue4573.pdf
 !issue4722.pdf
 !issue4800.pdf
+!issue13147.pdf
 !issue11477_reduced.pdf
 !text_clip_cff_cid.pdf
 !issue4801.pdf
@@ -340,6 +355,7 @@
 !issue2128r.pdf
 !issue5540.pdf
 !issue5549.pdf
+!visibility_expressions.pdf
 !issue5475.pdf
 !issue10519_reduced.pdf
 !annotation-border-styles.pdf
@@ -358,10 +374,12 @@
 !issue6106.pdf
 !issue6296.pdf
 !bug852992_reduced.pdf
+!issue13271.pdf
 !issue6298.pdf
 !issue6889.pdf
 !bug1001080.pdf
 !bug1671312_reduced.pdf
+!bug1671312_ArialNarrow.pdf
 !issue6108.pdf
 !issue6113.pdf
 !openoffice.pdf
@@ -372,6 +390,7 @@
 !issue9278.pdf
 !annotation-text-without-popup.pdf
 !annotation-underline.pdf
+!issue13193.pdf
 !annotation-underline-without-appearance.pdf
 !issue269_2.pdf
 !annotation-strikeout.pdf
@@ -383,8 +402,10 @@
 !issue12418_reduced.pdf
 !annotation-freetext.pdf
 !annotation-line.pdf
+!annotation-line-without-appearance.pdf
 !bug1669099.pdf
 !annotation-square-circle.pdf
+!annotation-square-circle-without-appearance.pdf
 !annotation-stamp.pdf
 !annotation-fileattachment.pdf
 !annotation-text-widget.pdf
@@ -395,6 +416,7 @@
 !operator-in-TJ-array.pdf
 !issue7878.pdf
 !font_ascent_descent.pdf
+!listbox_actions.pdf
 !issue11442_reduced.pdf
 !issue11549_reduced.pdf
 !issue8097_reduced.pdf
@@ -410,3 +432,4 @@
 !issue11555.pdf
 !issue12337.pdf
 !pr12564.pdf
+!pr12828.pdf

@@ -259,9 +259,15 @@ var DecodeStream = (function DecodeStreamClosure() {
       return bytes;
     },
     makeSubStream: function DecodeStream_makeSubStream(start, length, dict) {
-      var end = start + length;
-      while (this.bufferLength <= end && !this.eof) {
-        this.readBlock();
+      if (length === undefined) {
+        while (!this.eof) {
+          this.readBlock();
+        }
+      } else {
+        var end = start + length;
+        while (this.bufferLength <= end && !this.eof) {
+          this.readBlock();
+        }
       }
       return new Stream(this.buffer, start, length, dict);
     },
@@ -1341,14 +1347,14 @@ var NullStream = (function NullStreamClosure() {
 export {
   Ascii85Stream,
   AsciiHexStream,
-  DecryptStream,
   DecodeStream,
+  DecryptStream,
   FlateStream,
+  LZWStream,
   NullStream,
   PredictorStream,
   RunLengthStream,
   Stream,
   StreamsSequenceStream,
   StringStream,
-  LZWStream,
 };

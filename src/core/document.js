@@ -15,6 +15,7 @@
 
 import {
   assert,
+  bytesToString,
   FormatError,
   info,
   InvalidPDFException,
@@ -28,11 +29,11 @@ import {
   shadow,
   stringToBytes,
   stringToPDFString,
+  stringToUTF8String,
   unreachable,
   Util,
   warn,
 } from "../shared/util.js";
-import { Catalog, ObjectLoader, XRef } from "./obj.js";
 import {
   clearPrimitiveCaches,
   Dict,
@@ -40,6 +41,7 @@ import {
   isName,
   isRef,
   isStream,
+  Name,
   Ref,
 } from "./primitives.js";
 import {
@@ -47,15 +49,21 @@ import {
   getInheritableProperty,
   isWhiteSpace,
   MissingDataException,
+  validateCSSFont,
   XRefEntryException,
   XRefParseException,
 } from "./core_utils.js";
 import { NullStream, Stream, StreamsSequenceStream } from "./stream.js";
 import { AnnotationFactory } from "./annotation.js";
 import { calculateMD5 } from "./crypto.js";
+import { Catalog } from "./catalog.js";
 import { Linearization } from "./parser.js";
+import { ObjectLoader } from "./object_loader.js";
 import { OperatorList } from "./operator_list.js";
 import { PartialEvaluator } from "./evaluator.js";
+import { StructTreePage } from "./struct_tree.js";
+import { XFAFactory } from "./xfa/factory.js";
+import { XRef } from "./xref.js";
 
 const DEFAULT_USER_UNIT = 1.0;
 const LETTER_SIZE_MEDIABOX = [0, 0, 612, 792];
@@ -79,6 +87,7 @@ class Page {
     builtInCMapCache,
     globalImageCache,
     nonBlendModesSet,
+    xfaFactory,
   }) {
     this.pdfManager = pdfManager;
     this.pageIndex = pageIndex;
@@ -91,6 +100,7 @@ class Page {
     this.nonBlendModesSet = nonBlendModesSet;
     this.evaluatorOptions = pdfManager.evaluatorOptions;
     this.resourcesPromise = null;
+    this.xfaFactory = xfaFactory;
 
     const idCounters = {
       obj: 0,
@@ -98,6 +108,10 @@ class Page {
     this._localIdFactory = class extends globalIdFactory {
       static createObjId() {
         return `p${pageIndex}_${++idCounters.obj}`;
+      }
+
+      static getPageObjId() {
+        return `page${ref.toString()}`;
       }
     };
   }
@@ -137,6 +151,11 @@ class Page {
   }
 
   _getBoundingBox(name) {
+    if (this.xfaData) {
+      const { width, height } = this.xfaData.attributes.style;
+      return [0, 0, parseInt(width), parseInt(height)];
+    }
+
     const box = this._getInheritableProperty(name, /* getArray = */ true);
 
     if (Array.isArray(box) && box.length === 4) {
@@ -231,6 +250,13 @@ class Page {
     return stream;
   }
 
+  get xfaData() {
+    if (this.xfaFactory) {
+      return shadow(this, "xfaData", this.xfaFactory.getPage(this.pageIndex));
+    }
+    return shadow(this, "xfaData", null);
+  }
+
   save(handler, task, annotationStorage) {
     const partialEvaluator = new PartialEvaluator({
       xref: this.xref,
@@ -292,12 +318,13 @@ class Page {
       "getContentStream"
     );
     const resourcesPromise = this.loadResources([
-      "ExtGState",
       "ColorSpace",
+      "ExtGState",
+      "Font",
       "Pattern",
+      "Properties",
       "Shading",
       "XObject",
-      "Font",
     ]);
 
     const partialEvaluator = new PartialEvaluator({
@@ -389,6 +416,7 @@ class Page {
     handler,
     task,
     normalizeWhitespace,
+    includeMarkedContent,
     sink,
     combineTextItems,
   }) {
@@ -398,8 +426,9 @@ class Page {
     );
     const resourcesPromise = this.loadResources([
       "ExtGState",
-      "XObject",
       "Font",
+      "Properties",
+      "XObject",
     ]);
 
     const dataPromises = Promise.all([contentStreamPromise, resourcesPromise]);
@@ -420,10 +449,33 @@ class Page {
         task,
         resources: this.resources,
         normalizeWhitespace,
+        includeMarkedContent,
         combineTextItems,
         sink,
       });
     });
+  }
+
+  async getStructTree() {
+    const structTreeRoot = await this.pdfManager.ensureCatalog(
+      "structTreeRoot"
+    );
+    if (!structTreeRoot) {
+      return null;
+    }
+    const structTree = await this.pdfManager.ensure(this, "_parseStructTree", [
+      structTreeRoot,
+    ]);
+    return structTree.serializable;
+  }
+
+  /**
+   * @private
+   */
+  _parseStructTree(structTreeRoot) {
+    const tree = new StructTreePage(structTreeRoot, this.pageDict);
+    tree.parse();
+    return tree;
   }
 
   getAnnotationsData(intent) {
@@ -454,7 +506,8 @@ class Page {
               this.xref,
               annotationRef,
               this.pdfManager,
-              this._localIdFactory
+              this._localIdFactory,
+              /* collectFields */ false
             ).catch(function (reason) {
               warn(`_parsedAnnotations: "${reason}".`);
               return null;
@@ -476,7 +529,6 @@ class Page {
       this.pageDict,
       PageActionEventType
     );
-
     return shadow(this, "jsActions", actions);
   }
 }
@@ -585,6 +637,10 @@ class PDFDocument {
 
       static createObjId() {
         unreachable("Abstract method `createObjId` called.");
+      }
+
+      static getPageObjId() {
+        unreachable("Abstract method `getPageObjId` called.");
       }
     };
   }
@@ -695,6 +751,9 @@ class PDFDocument {
   }
 
   get numPages() {
+    if (this.xfaFactory) {
+      return shadow(this, "numPages", this.xfaFactory.numberPages);
+    }
     const linearization = this.linearization;
     const num = linearization ? linearization.numPages : this.catalog.numPages;
     return shadow(this, "numPages", num);
@@ -732,8 +791,160 @@ class PDFDocument {
     });
   }
 
+  get xfaData() {
+    const acroForm = this.catalog.acroForm;
+    if (!acroForm) {
+      return null;
+    }
+
+    const xfa = acroForm.get("XFA");
+    const entries = {
+      "xdp:xdp": "",
+      template: "",
+      datasets: "",
+      config: "",
+      connectionSet: "",
+      localeSet: "",
+      stylesheet: "",
+      "/xdp:xdp": "",
+    };
+    if (isStream(xfa) && !xfa.isEmpty) {
+      try {
+        entries["xdp:xdp"] = stringToUTF8String(bytesToString(xfa.getBytes()));
+        return entries;
+      } catch (_) {
+        warn("XFA - Invalid utf-8 string.");
+        return null;
+      }
+    }
+
+    if (!Array.isArray(xfa) || xfa.length === 0) {
+      return null;
+    }
+
+    for (let i = 0, ii = xfa.length; i < ii; i += 2) {
+      let name;
+      if (i === 0) {
+        name = "xdp:xdp";
+      } else if (i === ii - 2) {
+        name = "/xdp:xdp";
+      } else {
+        name = xfa[i];
+      }
+
+      if (!entries.hasOwnProperty(name)) {
+        continue;
+      }
+      const data = this.xref.fetchIfRef(xfa[i + 1]);
+      if (!isStream(data) || data.isEmpty) {
+        continue;
+      }
+      try {
+        entries[name] = stringToUTF8String(bytesToString(data.getBytes()));
+      } catch (_) {
+        warn("XFA - Invalid utf-8 string.");
+        return null;
+      }
+    }
+    return entries;
+  }
+
+  get xfaFactory() {
+    if (
+      this.pdfManager.enableXfa &&
+      this.formInfo.hasXfa &&
+      !this.formInfo.hasAcroForm
+    ) {
+      const data = this.xfaData;
+      return shadow(this, "xfaFactory", data ? new XFAFactory(data) : null);
+    }
+    return shadow(this, "xfaFaxtory", null);
+  }
+
+  get isPureXfa() {
+    return this.xfaFactory !== null;
+  }
+
+  async loadXfaFonts(handler, task) {
+    const acroForm = await this.pdfManager.ensureCatalog("acroForm");
+    if (!acroForm) {
+      return;
+    }
+    const resources = await acroForm.getAsync("DR");
+    if (!(resources instanceof Dict)) {
+      return;
+    }
+    const objectLoader = new ObjectLoader(resources, ["Font"], this.xref);
+    await objectLoader.load();
+
+    const fontRes = resources.get("Font");
+    if (!(fontRes instanceof Dict)) {
+      return;
+    }
+
+    const partialEvaluator = new PartialEvaluator({
+      xref: this.xref,
+      handler,
+      pageIndex: -1,
+      idFactory: this._globalIdFactory,
+      fontCache: this.catalog.fontCache,
+      builtInCMapCache: this.catalog.builtInCMapCache,
+    });
+    const operatorList = new OperatorList();
+    const initialState = {
+      font: null,
+      clone() {
+        return this;
+      },
+    };
+
+    const fonts = new Map();
+    fontRes.forEach((fontName, font) => {
+      fonts.set(fontName, font);
+    });
+    const promises = [];
+
+    for (const [fontName, font] of fonts) {
+      const descriptor = font.get("FontDescriptor");
+      if (!(descriptor instanceof Dict)) {
+        continue;
+      }
+      const fontFamily = descriptor.get("FontFamily");
+      const fontWeight = descriptor.get("FontWeight");
+      const italicAngle = descriptor.get("ItalicAngle");
+      const cssFontInfo = { fontFamily, fontWeight, italicAngle };
+
+      if (!validateCSSFont(cssFontInfo)) {
+        continue;
+      }
+      promises.push(
+        partialEvaluator
+          .handleSetFont(
+            resources,
+            [Name.get(fontName), 1],
+            /* fontRef = */ null,
+            operatorList,
+            task,
+            initialState,
+            /* fallbackFontDict = */ null,
+            /* cssFontInfo = */ cssFontInfo
+          )
+          .catch(function (reason) {
+            warn(`loadXfaFonts: "${reason}".`);
+            return null;
+          })
+      );
+    }
+    await Promise.all(promises);
+  }
+
   get formInfo() {
-    const formInfo = { hasFields: false, hasAcroForm: false, hasXfa: false };
+    const formInfo = {
+      hasFields: false,
+      hasAcroForm: false,
+      hasXfa: false,
+      hasSignatures: false,
+    };
     const acroForm = this.catalog.acroForm;
     if (!acroForm) {
       return shadow(this, "formInfo", formInfo);
@@ -759,9 +970,11 @@ class PDFDocument {
       // the first bit of the `SigFlags` integer (see Table 219 in the
       // specification).
       const sigFlags = acroForm.get("SigFlags");
+      const hasSignatures = !!(sigFlags & 0x1);
       const hasOnlyDocumentSignatures =
-        !!(sigFlags & 0x1) && this._hasOnlyDocumentSignatures(fields);
+        hasSignatures && this._hasOnlyDocumentSignatures(fields);
       formInfo.hasAcroForm = hasFields && !hasOnlyDocumentSignatures;
+      formInfo.hasSignatures = hasSignatures;
     } catch (ex) {
       if (ex instanceof MissingDataException) {
         throw ex;
@@ -799,6 +1012,7 @@ class PDFDocument {
       IsAcroFormPresent: this.formInfo.hasAcroForm,
       IsXFAPresent: this.formInfo.hasXfa,
       IsCollectionPresent: !!this.catalog.collection,
+      IsSignaturesPresent: this.formInfo.hasSignatures,
     };
 
     let infoDict;
@@ -918,6 +1132,24 @@ class PDFDocument {
     }
     const { catalog, linearization } = this;
 
+    if (this.xfaFactory) {
+      return Promise.resolve(
+        new Page({
+          pdfManager: this.pdfManager,
+          xref: this.xref,
+          pageIndex,
+          pageDict: Dict.empty,
+          ref: null,
+          globalIdFactory: this._globalIdFactory,
+          fontCache: catalog.fontCache,
+          builtInCMapCache: catalog.builtInCMapCache,
+          globalImageCache: catalog.globalImageCache,
+          nonBlendModesSet: catalog.nonBlendModesSet,
+          xfaFactory: this.xfaFactory,
+        })
+      );
+    }
+
     const promise =
       linearization && linearization.pageFirst === pageIndex
         ? this._getLinearizationPage(pageIndex)
@@ -935,6 +1167,7 @@ class PDFDocument {
         builtInCMapCache: catalog.builtInCMapCache,
         globalImageCache: catalog.globalImageCache,
         nonBlendModesSet: catalog.nonBlendModesSet,
+        xfaFactory: null,
       });
     }));
   }
@@ -985,7 +1218,8 @@ class PDFDocument {
         this.xref,
         fieldRef,
         this.pdfManager,
-        this._localIdFactory
+        this._localIdFactory,
+        /* collectFields */ true
       )
         .then(annotation => annotation && annotation.getFieldObject())
         .catch(function (reason) {
@@ -1033,19 +1267,28 @@ class PDFDocument {
   }
 
   get hasJSActions() {
-    return shadow(
-      this,
-      "hasJSActions",
-      this.fieldObjects.then(fieldObjects => {
-        return (
-          (fieldObjects !== null &&
-            Object.values(fieldObjects).some(fieldObject =>
-              fieldObject.some(object => object.actions !== null)
-            )) ||
-          !!this.catalog.jsActions
-        );
-      })
-    );
+    const promise = this.pdfManager.ensureDoc("_parseHasJSActions");
+    return shadow(this, "hasJSActions", promise);
+  }
+
+  /**
+   * @private
+   */
+  async _parseHasJSActions() {
+    const [catalogJsActions, fieldObjects] = await Promise.all([
+      this.pdfManager.ensureCatalog("jsActions"),
+      this.pdfManager.ensureDoc("fieldObjects"),
+    ]);
+
+    if (catalogJsActions) {
+      return true;
+    }
+    if (fieldObjects) {
+      return Object.values(fieldObjects).some(fieldObject =>
+        fieldObject.some(object => object.actions !== null)
+      );
+    }
+    return false;
   }
 
   get calculationOrderIds() {

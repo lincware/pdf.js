@@ -61,29 +61,36 @@ class Sandbox {
     if (TESTING) {
       this._module.ccall("nukeSandbox", null, []);
     }
-    const sandboxData = JSON.stringify(data);
-    const code = [
-      PDFJSDev.eval("PDF_SCRIPTING_JS_SOURCE"),
-      `pdfjsScripting.initSandbox({ data: ${sandboxData} })`,
-    ];
+    const code = [PDFJSDev.eval("PDF_SCRIPTING_JS_SOURCE")];
     if (!TESTING) {
       code.push("delete dump;");
     } else {
-      code.unshift(
+      code.push(
         `globalThis.sendResultForTesting = callExternalFunction.bind(null, "send");`
       );
     }
 
     let success = false;
+    let buf = 0;
     try {
+      const sandboxData = JSON.stringify(data);
+      // "pdfjsScripting.initSandbox..." MUST be the last line to be evaluated
+      // since the returned value is used for the communication.
+      code.push(`pdfjsScripting.initSandbox({ data: ${sandboxData} })`);
+      buf = this._module.stringToNewUTF8(code.join("\n"));
+
       success = !!this._module.ccall(
         "init",
         "number",
-        ["string", "number"],
-        [code.join("\n"), this._alertOnError]
+        ["number", "number"],
+        [buf, this._alertOnError]
       );
     } catch (error) {
       console.error(error);
+    } finally {
+      if (buf) {
+        this._module.ccall("free", "number", ["number"], [buf]);
+      }
     }
 
     if (success) {

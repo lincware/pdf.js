@@ -61,9 +61,9 @@ class BaseFontLoader {
   }
 
   clear() {
-    this.nativeFontFaces.forEach(nativeFontFace => {
+    for (const nativeFontFace of this.nativeFontFaces) {
       this._document.fonts.delete(nativeFontFace);
-    });
+    }
     this.nativeFontFaces.length = 0;
 
     if (this.styleElement) {
@@ -350,7 +350,7 @@ class FontFaceObject {
       isEvalSupported = true,
       disableFontFace = false,
       ignoreErrors = false,
-      onUnsupportedFeature = null,
+      onUnsupportedFeature,
       fontRegistry = null,
     }
   ) {
@@ -370,7 +370,22 @@ class FontFaceObject {
     if (!this.data || this.disableFontFace) {
       return null;
     }
-    const nativeFontFace = new FontFace(this.loadedName, this.data, {});
+    let nativeFontFace;
+    if (!this.cssFontInfo) {
+      nativeFontFace = new FontFace(this.loadedName, this.data, {});
+    } else {
+      const css = {
+        weight: this.cssFontInfo.fontWeight,
+      };
+      if (this.cssFontInfo.italicAngle) {
+        css.style = `oblique ${this.cssFontInfo.italicAngle}deg`;
+      }
+      nativeFontFace = new FontFace(
+        this.cssFontInfo.fontFamily,
+        this.data,
+        css
+      );
+    }
 
     if (this.fontRegistry) {
       this.fontRegistry.registerFont(this);
@@ -385,7 +400,16 @@ class FontFaceObject {
     const data = bytesToString(new Uint8Array(this.data));
     // Add the @font-face rule to the document.
     const url = `url(data:${this.mimetype};base64,${btoa(data)});`;
-    const rule = `@font-face {font-family:"${this.loadedName}";src:${url}}`;
+    let rule;
+    if (!this.cssFontInfo) {
+      rule = `@font-face {font-family:"${this.loadedName}";src:${url}}`;
+    } else {
+      let css = `font-weight: ${this.cssFontInfo.fontWeight};`;
+      if (this.cssFontInfo.italicAngle) {
+        css += `font-style: oblique ${this.cssFontInfo.italicAngle}deg;`;
+      }
+      rule = `@font-face {font-family:"${this.cssFontInfo.fontFamily}";${css}src:${url}}`;
+    }
 
     if (this.fontRegistry) {
       this.fontRegistry.registerFont(this, url);
@@ -405,11 +429,9 @@ class FontFaceObject {
       if (!this.ignoreErrors) {
         throw ex;
       }
-      if (this._onUnsupportedFeature) {
-        this._onUnsupportedFeature({
-          featureId: UNSUPPORTED_FEATURES.errorFontGetPath,
-        });
-      }
+      this._onUnsupportedFeature({
+        featureId: UNSUPPORTED_FEATURES.errorFontGetPath,
+      });
       warn(`getPathGenerator - ignoring character: "${ex}".`);
 
       return (this.compiledGlyphs[character] = function (c, size) {

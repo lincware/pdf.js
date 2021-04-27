@@ -16,7 +16,7 @@
 import { bytesToString, escapeString, warn } from "../shared/util.js";
 import { Dict, isDict, isName, isRef, isStream, Name } from "./primitives.js";
 import { escapePDFName, parseXFAPath } from "./core_utils.js";
-import { SimpleDOMNode, SimpleXMLParser } from "../shared/xml_parser.js";
+import { SimpleDOMNode, SimpleXMLParser } from "./xml_parser.js";
 import { calculateMD5 } from "./crypto.js";
 
 function writeDict(dict, buffer, transform) {
@@ -130,9 +130,7 @@ function updateXFA(datasetsRef, newRefs, xref) {
   }
   const datasets = xref.fetchIfRef(datasetsRef);
   const str = bytesToString(datasets.getBytes());
-  const xml = new SimpleXMLParser(/* hasAttributes */ true).parseFromString(
-    str
-  );
+  const xml = new SimpleXMLParser({ hasAttributes: true }).parseFromString(str);
 
   for (const { xfa } of newRefs) {
     if (!xfa) {
@@ -203,8 +201,8 @@ function incrementalUpdate({
   if (xrefInfo.infoRef !== null) {
     newXref.set("Info", xrefInfo.infoRef);
   }
-  if (xrefInfo.encrypt !== null) {
-    newXref.set("Encrypt", xrefInfo.encrypt);
+  if (xrefInfo.encryptRef !== null) {
+    newXref.set("Encrypt", xrefInfo.encryptRef);
   }
 
   // Add a ref for the new xref and sort them
@@ -228,7 +226,7 @@ function incrementalUpdate({
 
   newXref.set("Index", indexes);
 
-  if (xrefInfo.fileIds.length !== 0) {
+  if (Array.isArray(xrefInfo.fileIds) && xrefInfo.fileIds.length > 0) {
     const md5 = computeMD5(baseOffset, xrefInfo);
     newXref.set("ID", [xrefInfo.fileIds[0], md5]);
   }
@@ -273,4 +271,4 @@ function incrementalUpdate({
   return array;
 }
 
-export { writeDict, incrementalUpdate };
+export { incrementalUpdate, writeDict };

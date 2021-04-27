@@ -18,6 +18,7 @@ import {
   Cursor,
   Display,
   Font,
+  GlobalConstants,
   Highlight,
   Position,
   ScaleHow,
@@ -66,20 +67,39 @@ function initSandbox(params) {
   });
 
   const util = new Util({ externalCall });
-  const aform = new AForm(doc, app, util);
+  const appObjects = app._objects;
 
   if (data.objects) {
+    const annotations = [];
+
     for (const [name, objs] of Object.entries(data.objects)) {
-      const obj = objs[0];
-      obj.send = send;
+      annotations.length = 0;
+      let container = null;
+
+      for (const obj of objs) {
+        if (obj.type !== "") {
+          annotations.push(obj);
+        } else {
+          container = obj;
+        }
+      }
+
+      let obj = container;
+      if (annotations.length > 0) {
+        obj = annotations[0];
+        obj.send = send;
+      }
+
       obj.globalEval = globalEval;
-      obj.doc = _document.wrapped;
+      obj.doc = _document;
+      obj.fieldPath = name;
+      obj.appObjects = appObjects;
       let field;
       if (obj.type === "radiobutton") {
-        const otherButtons = objs.slice(1);
+        const otherButtons = annotations.slice(1);
         field = new RadioButtonField(otherButtons, obj);
       } else if (obj.type === "checkbox") {
-        const otherButtons = objs.slice(1);
+        const otherButtons = annotations.slice(1);
         field = new CheckboxField(otherButtons, obj);
       } else {
         field = new Field(obj);
@@ -89,15 +109,20 @@ function initSandbox(params) {
       doc._addField(name, wrapped);
       const _object = { obj: field, wrapped };
       for (const object of objs) {
-        app._objects[object.id] = _object;
+        appObjects[object.id] = _object;
+      }
+      if (container) {
+        appObjects[container.id] = _object;
       }
     }
   }
 
+  const color = new Color();
+
   globalThis.event = null;
   globalThis.global = Object.create(null);
   globalThis.app = new Proxy(app, proxyHandler);
-  globalThis.color = new Proxy(new Color(), proxyHandler);
+  globalThis.color = new Proxy(color, proxyHandler);
   globalThis.console = new Proxy(new Console({ send }), proxyHandler);
   globalThis.util = new Proxy(util, proxyHandler);
   globalThis.border = Border;
@@ -112,11 +137,39 @@ function initSandbox(params) {
   globalThis.trans = Trans;
   globalThis.zoomtype = ZoomType;
 
+  // Avoid to have a popup asking to update Acrobat.
+  globalThis.ADBE = {
+    Reader_Value_Asked: true,
+    Viewer_Value_Asked: true,
+  };
+
+  // AF... functions
+  const aform = new AForm(doc, app, util, color);
   for (const name of Object.getOwnPropertyNames(AForm.prototype)) {
     if (name !== "constructor" && !name.startsWith("_")) {
       globalThis[name] = aform[name].bind(aform);
     }
   }
+
+  // Add global constants such as IDS_GREATER_THAN or RE_NUMBER_ENTRY_DOT_SEP
+  for (const [name, value] of Object.entries(GlobalConstants)) {
+    Object.defineProperty(globalThis, name, {
+      value,
+      writable: false,
+    });
+  }
+
+  // Color functions
+  Object.defineProperties(globalThis, {
+    ColorConvert: {
+      value: color.convert.bind(color),
+      writable: true,
+    },
+    ColorEqual: {
+      value: color.equal.bind(color),
+      writable: true,
+    },
+  });
 
   // The doc properties must live in the global scope too
   const properties = Object.create(null);
