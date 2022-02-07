@@ -22,6 +22,7 @@ import {
   isNum,
   OPS,
   TextRenderingMode,
+  unreachable,
   Util,
   warn,
 } from "../shared/util.js";
@@ -29,11 +30,16 @@ import { DOMSVGFactory } from "./display_utils.js";
 import { isNodeJS } from "../shared/is_node.js";
 
 /** @type {any} */
-let SVGGraphics = function () {
-  throw new Error("Not implemented: SVGGraphics");
+let SVGGraphics = class {
+  constructor() {
+    unreachable("Not implemented: SVGGraphics");
+  }
 };
 
-if (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) {
+if (
+  typeof PDFJSDev === "undefined" ||
+  PDFJSDev.test("!PRODUCTION || GENERIC")
+) {
   const SVG_DEFAULTS = {
     fontStyle: "normal",
     fontWeight: "normal",
@@ -46,14 +52,7 @@ if (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) {
 
   const convertImgDataToPng = (function () {
     const PNG_HEADER = new Uint8Array([
-      0x89,
-      0x50,
-      0x4e,
-      0x47,
-      0x0d,
-      0x0a,
-      0x1a,
-      0x0a,
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
     ]);
     const CHUNK_WRAPPER_SIZE = 12;
 
@@ -438,8 +437,7 @@ if (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) {
   let maskCount = 0;
   let shadingCount = 0;
 
-  // eslint-disable-next-line no-shadow
-  SVGGraphics = class SVGGraphics {
+  SVGGraphics = class {
     constructor(commonObjs, objs, forceDataSchema = false) {
       this.svgFactory = new DOMSVGFactory();
 
@@ -1115,8 +1113,10 @@ if (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) {
       const paintType = args[7];
 
       const tilingId = `shading${shadingCount++}`;
-      const [tx0, ty0] = Util.applyTransform([x0, y0], matrix);
-      const [tx1, ty1] = Util.applyTransform([x1, y1], matrix);
+      const [tx0, ty0, tx1, ty1] = Util.normalizeRect([
+        ...Util.applyTransform([x0, y0], matrix),
+        ...Util.applyTransform([x1, y1], matrix),
+      ]);
       const [xscale, yscale] = Util.singularValueDecompose2dScale(matrix);
       const txstep = xstep * xscale;
       const tystep = ystep * yscale;
@@ -1160,6 +1160,9 @@ if (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) {
      * @private
      */
     _makeShadingPattern(args) {
+      if (typeof args === "string") {
+        args = this.objs.get(args);
+      }
       switch (args[0]) {
         case "RadialAxial":
           const shadingId = `shading${shadingCount++}`;

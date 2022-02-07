@@ -13,9 +13,14 @@
  * limitations under the License.
  */
 
-import { getOutputScale } from "./ui_utils.js";
+/** @typedef {import("./interfaces").IL10n} IL10n */
+/** @typedef {import("./interfaces").IPDFLinkService} IPDFLinkService */
+/** @typedef {import("./interfaces").IRenderableView} IRenderableView */
+// eslint-disable-next-line max-len
+/** @typedef {import("./pdf_rendering_queue").PDFRenderingQueue} PDFRenderingQueue */
+
+import { getOutputScale, RenderingStates } from "./ui_utils.js";
 import { RenderingCancelledException } from "pdfjs-lib";
-import { RenderingStates } from "./pdf_rendering_queue.js";
 
 const DRAW_UPSCALE_FACTOR = 2; // See comment in `PDFThumbnailView.draw` below.
 const MAX_NUM_SCALING_STEPS = 3;
@@ -33,54 +38,45 @@ const THUMBNAIL_WIDTH = 98; // px
  * @property {IPDFLinkService} linkService - The navigation/linking service.
  * @property {PDFRenderingQueue} renderingQueue - The rendering queue object.
  * @property {function} checkSetImageDisabled
- * @property {boolean} [disableCanvasToImageConversion] - Don't convert the
- *   canvas thumbnails to images. This prevents `toDataURL` calls, but
- *   increases the overall memory usage. The default value is `false`.
  * @property {IL10n} l10n - Localization service.
  */
 
-const TempImageFactory = (function TempImageFactoryClosure() {
-  let tempCanvasCache = null;
+class TempImageFactory {
+  static #tempCanvas = null;
 
-  return {
-    getCanvas(width, height) {
-      let tempCanvas = tempCanvasCache;
-      if (!tempCanvas) {
-        tempCanvas = document.createElement("canvas");
-        tempCanvasCache = tempCanvas;
-      }
-      tempCanvas.width = width;
-      tempCanvas.height = height;
+  static getCanvas(width, height) {
+    const tempCanvas = (this.#tempCanvas ||= document.createElement("canvas"));
+    tempCanvas.width = width;
+    tempCanvas.height = height;
 
-      // Since this is a temporary canvas, we need to fill it with a white
-      // background ourselves. `_getPageDrawContext` uses CSS rules for this.
-      if (
-        typeof PDFJSDev === "undefined" ||
-        PDFJSDev.test("MOZCENTRAL || GENERIC")
-      ) {
-        tempCanvas.mozOpaque = true;
-      }
+    // Since this is a temporary canvas, we need to fill it with a white
+    // background ourselves. `_getPageDrawContext` uses CSS rules for this.
+    if (
+      typeof PDFJSDev === "undefined" ||
+      PDFJSDev.test("MOZCENTRAL || GENERIC")
+    ) {
+      tempCanvas.mozOpaque = true;
+    }
 
-      const ctx = tempCanvas.getContext("2d", { alpha: false });
-      ctx.save();
-      ctx.fillStyle = "rgb(255, 255, 255)";
-      ctx.fillRect(0, 0, width, height);
-      ctx.restore();
-      return [tempCanvas, tempCanvas.getContext("2d")];
-    },
+    const ctx = tempCanvas.getContext("2d", { alpha: false });
+    ctx.save();
+    ctx.fillStyle = "rgb(255, 255, 255)";
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+    return [tempCanvas, tempCanvas.getContext("2d")];
+  }
 
-    destroyCanvas() {
-      const tempCanvas = tempCanvasCache;
-      if (tempCanvas) {
-        // Zeroing the width and height causes Firefox to release graphics
-        // resources immediately, which can greatly reduce memory consumption.
-        tempCanvas.width = 0;
-        tempCanvas.height = 0;
-      }
-      tempCanvasCache = null;
-    },
-  };
-})();
+  static destroyCanvas() {
+    const tempCanvas = this.#tempCanvas;
+    if (tempCanvas) {
+      // Zeroing the width and height causes Firefox to release graphics
+      // resources immediately, which can greatly reduce memory consumption.
+      tempCanvas.width = 0;
+      tempCanvas.height = 0;
+    }
+    this.#tempCanvas = null;
+  }
+}
 
 /**
  * @implements {IRenderableView}
@@ -97,7 +93,6 @@ class PDFThumbnailView {
     linkService,
     renderingQueue,
     checkSetImageDisabled,
-    disableCanvasToImageConversion = false,
     l10n,
   }) {
     this.id = id;
@@ -121,7 +116,6 @@ class PDFThumbnailView {
       function () {
         return false;
       };
-    this.disableCanvasToImageConversion = disableCanvasToImageConversion;
 
     const pageWidth = this.viewport.width,
       pageHeight = this.viewport.height,
@@ -200,9 +194,9 @@ class PDFThumbnailView {
     }
   }
 
-  update(rotation) {
-    if (typeof rotation !== "undefined") {
-      this.rotation = rotation;
+  update({ rotation = null }) {
+    if (typeof rotation === "number") {
+      this.rotation = rotation; // The rotation may be zero.
     }
     const totalRotation = (this.rotation + this.pdfPageRotate) % 360;
     this.viewport = this.viewport.clone({
@@ -260,20 +254,6 @@ class PDFThumbnailView {
     }
     const reducedCanvas = this._reduceImage(canvas);
 
-    if (this.disableCanvasToImageConversion) {
-      reducedCanvas.className = "thumbnailImage";
-      this._thumbPageCanvas.then(msg => {
-        reducedCanvas.setAttribute("aria-label", msg);
-      });
-      reducedCanvas.style.width = this.canvasWidth + "px";
-      reducedCanvas.style.height = this.canvasHeight + "px";
-
-      this.canvas = reducedCanvas;
-
-      this.div.setAttribute("data-loaded", true);
-      this.ring.appendChild(reducedCanvas);
-      return;
-    }
     const image = document.createElement("img");
     image.className = "thumbnailImage";
     this._thumbPageCanvas.then(msg => {
@@ -297,7 +277,7 @@ class PDFThumbnailView {
   draw() {
     if (this.renderingState !== RenderingStates.INITIAL) {
       console.error("Must be in new state before drawing");
-      return Promise.resolve(undefined);
+      return Promise.resolve();
     }
     const { pdfPage } = this;
 
@@ -332,9 +312,8 @@ class PDFThumbnailView {
     // the `draw` and `setImage` methods (fixes issue 8233).
     // NOTE: To primarily avoid increasing memory usage too much, but also to
     //   reduce downsizing overhead, we purposely limit the up-scaling factor.
-    const { ctx, canvas, transform } = this._getPageDrawContext(
-      DRAW_UPSCALE_FACTOR
-    );
+    const { ctx, canvas, transform } =
+      this._getPageDrawContext(DRAW_UPSCALE_FACTOR);
     const drawViewport = this.viewport.clone({
       scale: DRAW_UPSCALE_FACTOR * this.scale,
     });
@@ -501,11 +480,7 @@ class PDFThumbnailView {
     }
 
     this._thumbPageCanvas.then(msg => {
-      if (this.image) {
-        this.image.setAttribute("aria-label", msg);
-      } else if (this.canvas) {
-        this.canvas.setAttribute("aria-label", msg);
-      }
+      this.image?.setAttribute("aria-label", msg);
     });
   }
 }
