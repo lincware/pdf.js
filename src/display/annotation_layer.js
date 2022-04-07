@@ -2132,10 +2132,9 @@ class HighlightAnnotationElement extends AnnotationElement {
   render() {
     this.container.className = "highlightAnnotation";
 
-    const subject = null;
-      /*this.data.subject && this.data.subject.length > 0
+    const subject = this.data.subject && this.data.subject.length > 0
         ? this.data.subject.trim()
-        : this.data.subject;*/
+        : this.data.subject;
 
     if (subject) {
       this.container.setAttribute("data-subject", subject);
