@@ -1107,8 +1107,8 @@ class MarkupAnnotation extends Annotation {
       }
     }
 
-    if (dict.has('Subj')) {
-      this.data.subject = stringToPDFString(dict.get('Subj'));
+    if (dict.has("Subj")) {
+      this.data.subject = stringToPDFString(dict.get("Subj"));
     }
 
     if (dict.has("RC")) {

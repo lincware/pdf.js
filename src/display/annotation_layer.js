@@ -330,7 +330,7 @@ class AnnotationElement {
   /**
    * Create a popup for the annotation's HTML element. This is used for
    * annotations that do not have a Popup entry in the dictionary, but
-   * are of a type that works with popups (such as Highlight annotations).
+   * are of a type that works with popups (such as hight annotations).
    *
    * @private
    * @param {HTMLDivElement|HTMLImageElement|null} trigger
@@ -2132,19 +2132,23 @@ class HighlightAnnotationElement extends AnnotationElement {
   render() {
     this.container.className = "highlightAnnotation";
 
-    if (this.data.subject) {
-      this.container.setAttribute("data-subject", this.data.subject);
+    const subject = null;
+      /*this.data.subject && this.data.subject.length > 0
+        ? this.data.subject.trim()
+        : this.data.subject;*/
+
+    if (subject) {
+      this.container.setAttribute("data-subject", subject);
     }
 
     if (!this.data.hasPopup) {
       this._createPopup(null, this.data);
     }
 
-    if (this.quadrilaterals) {
+    if (this.quadrilaterals && !subject) {
       return this._renderQuadrilaterals("highlightAnnotation");
     }
 
-    this.container.className = "highlightAnnotation";
     return this.container;
   }
 }
