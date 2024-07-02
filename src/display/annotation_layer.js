@@ -612,7 +612,7 @@ class AnnotationElement {
   /**
    * Create a popup for the annotation's HTML element. This is used for
    * annotations that do not have a Popup entry in the dictionary, but
-   * are of a type that works with popups (such as Highlight annotations).
+   * are of a type that works with popups (such as hight annotations).
    *
    * @private
    * @memberof AnnotationElement
@@ -1591,6 +1591,26 @@ class TextWidgetAnnotationElement extends WidgetAnnotationElement {
 class SignatureWidgetAnnotationElement extends WidgetAnnotationElement {
   constructor(parameters) {
     super(parameters, { isRenderable: !!parameters.data.hasOwnCanvas });
+  }
+
+  render() {
+    this.container.className = "sigAnnotation";
+    this.container.setAttribute("data-field-id", this.data.fieldName);
+
+    // Create an invisible square with the same rectangle that acts as the
+    // trigger for the popup. Only the square itself should trigger the
+    // popup, not the entire container.
+    const data = this.data;
+    const width = data.rect[2] - data.rect[0];
+    const height = data.rect[3] - data.rect[1];
+
+    const div = document.createElement("div");
+    div.style.width = width + "px";
+    div.style.height = height + "px";
+
+    this.container.append(div);
+
+    return this.container;
   }
 }
 

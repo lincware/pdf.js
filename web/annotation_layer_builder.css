@@ -80,9 +80,11 @@
   &[data-main-rotation="90"] .norotate {
     transform: rotate(270deg) translateX(-100%);
   }
+
   &[data-main-rotation="180"] .norotate {
     transform: rotate(180deg) translate(-100%, -100%);
   }
+
   &[data-main-rotation="270"] .norotate {
     transform: rotate(90deg) translateY(-100%);
   }
@@ -136,7 +138,7 @@
   }
 
   :is(.linkAnnotation, .buttonWidgetAnnotation.pushButton):not(.hasBorder)
-    > a:hover {
+  > a:hover {
     opacity: 0.2;
     background-color: rgb(255 255 0);
     box-shadow: 0 2px 10px rgb(255 255 0);
@@ -203,6 +205,7 @@
   .buttonWidgetAnnotation:is(.checkBox, .radioButton) input:hover {
     border: 2px solid var(--input-hover-border-color);
   }
+
   .textWidgetAnnotation :is(input, textarea):hover,
   .choiceWidgetAnnotation select:hover,
   .buttonWidgetAnnotation.checkBox input:hover {
@@ -301,8 +304,7 @@
 
   .popup {
     background-color: rgb(255 255 153);
-    box-shadow: 0 calc(2px * var(--scale-factor))
-      calc(5px * var(--scale-factor)) rgb(136 136 136);
+    box-shadow: 0 calc(2px * var(--scale-factor)) calc(5px * var(--scale-factor)) rgb(136 136 136);
     border-radius: calc(2px * var(--scale-factor));
     outline: 1.5px solid rgb(255 255 74);
     padding: calc(6px * var(--scale-factor));
@@ -348,6 +350,39 @@
 
   .popupTriggerArea {
     cursor: pointer;
+  }
+
+  .sigAnnotation {
+    background-color: rgba(255, 251, 0, 0.10);
+    border: none;
+  }
+
+  .sigAnnotation.active {
+    background-color: rgba(255, 251, 0, 0.25);
+    border: 1px solid rgba(255, 232, 0, 0.50);
+
+    box-shadow: 0 1px 1px rgba(0, 0, 0, .2);
+  }
+
+  .sigAnnotation.active:hover {
+    background-color: rgba(255, 251, 0, 0.50);
+    border: 1px solid rgba(255, 232, 0, 0.80);
+
+    box-shadow: 0 1px 1px rgba(0, 0, 0, .4);
+  }
+
+  .sigAnnotation > div {
+    display: none;
+  }
+
+  .sigAnnotation.active > div {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    font-weight: bold;
+
+    text-shadow: 1px 1px 1px #FFF;
   }
 
   section svg {

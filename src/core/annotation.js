@@ -19,10 +19,8 @@ import {
   AnnotationEditorType,
   AnnotationFieldFlag,
   AnnotationFlag,
-  AnnotationReplyType,
-  AnnotationType,
-  assert,
-  BASELINE_FACTOR,
+  AnnotationReplyType, AnnotationType,
+  assert,BASELINE_FACTOR,
   FeatureTest,
   getModificationDate,
   IDENTITY_MATRIX,
@@ -62,11 +60,11 @@ import { Stream, StringStream } from "./stream.js";
 import { BaseStream } from "./base_stream.js";
 import { bidi } from "./bidi.js";
 import { Catalog } from "./catalog.js";
-import { ColorSpace } from "./colorspace.js";
+import {ColorSpace} from "./colorspace.js";
 import { FileSpec } from "./file_spec.js";
 import { JpegStream } from "./jpeg_stream.js";
 import { ObjectLoader } from "./object_loader.js";
-import { OperatorList } from "./operator_list.js";
+import {OperatorList} from "./operator_list.js";
 import { writeObject } from "./writer.js";
 import { XFAFactory } from "./xfa/factory.js";
 
@@ -187,7 +185,7 @@ class AnnotationFactory {
         return new TextAnnotation(parameters);
 
       case "Widget":
-        let fieldType = getInheritableProperty({ dict, key: "FT" });
+        let fieldType = getInheritableProperty({dict, key: "FT"});
         fieldType = fieldType instanceof Name ? fieldType.name : null;
 
         switch (fieldType) {
@@ -200,9 +198,8 @@ class AnnotationFactory {
           case "Sig":
             return new SignatureWidgetAnnotation(parameters);
         }
-        warn(
-          `Unimplemented widget field type "${fieldType}", ` +
-            "falling back to base field type."
+        warn(`Unimplemented widget field type "${ fieldType }", ` +
+          "falling back to base field type."
         );
         return new WidgetAnnotation(parameters);
 
@@ -256,11 +253,10 @@ class AnnotationFactory {
           if (!subtype) {
             warn("Annotation is missing the required /Subtype.");
           } else {
-            warn(
-              `Unimplemented annotation type "${subtype}", ` +
-                "falling back to base annotation."
-            );
-          }
+          warn(`Unimplemented annotation type "${ subtype }", ` +
+            "falling back to base annotation."
+          );
+        }
         }
         return new Annotation(parameters);
     }
@@ -1600,6 +1596,10 @@ class MarkupAnnotation extends Annotation {
 
     this.data.popupRef = popupRef instanceof Ref ? popupRef.toString() : null;
 
+    if (dict.has("Subj")) {
+      this.data.subject = stringToPDFString(dict.get("Subj"));
+    }
+
     if (dict.has("RC")) {
       this.data.richText = XFAFactory.getRichTextAsHtml(dict.get("RC"));
     }
@@ -1815,10 +1815,10 @@ class WidgetAnnotation extends Annotation {
       data.fieldValue !== undefined &&
       data.fieldValue !== null;
 
-    const fieldType = getInheritableProperty({ dict, key: "FT" });
+    const fieldType = getInheritableProperty({dict, key: "FT"});
     data.fieldType = fieldType instanceof Name ? fieldType.name : null;
 
-    const localResources = getInheritableProperty({ dict, key: "DR" });
+    const localResources = getInheritableProperty({dict, key: "DR"}) ;
     const acroFormResources = annotationGlobals.acroForm.get("DR");
     const appearanceResources = this.appearance?.dict.get("Resources");
 
@@ -1826,14 +1826,15 @@ class WidgetAnnotation extends Annotation {
       localResources,
       acroFormResources,
       appearanceResources,
-      mergedResources: Dict.merge({
+      mergedResources:
+      Dict.merge({
         xref,
         dictArray: [localResources, appearanceResources, acroFormResources],
         mergeSubDicts: true,
       }),
     };
 
-    data.fieldFlags = getInheritableProperty({ dict, key: "Ff" });
+    data.fieldFlags = getInheritableProperty({dict, key: "Ff"});
     if (!Number.isInteger(data.fieldFlags) || data.fieldFlags < 0) {
       data.fieldFlags = 0;
     }
@@ -1843,6 +1844,61 @@ class WidgetAnnotation extends Annotation {
     data.hidden =
       this._hasFlag(data.annotationFlags, AnnotationFlag.HIDDEN) ||
       this._hasFlag(data.annotationFlags, AnnotationFlag.NOVIEW);
+
+    // Hide signatures because we cannot validate them, and unset the fieldValue
+    // since it's (most likely) a `Dict` which is non-serializable and will thus
+    // cause errors when sending annotations to the main-thread (issue 10347).
+    if (data.fieldType === "Sig") {
+      data.fieldValue = null;
+      //this.setFlags(AnnotationFlag.HIDDEN);
+      //data.hidden = true;
+    }
+  }
+
+  /**
+   * Construct the (fully qualified) field name from the (partial) field
+   * names of the field and its ancestors.
+   *
+   * @private
+   * @memberof WidgetAnnotation
+   * @param {Dict} dict - Complete widget annotation dictionary
+   * @returns {string}
+   */
+  _constructFieldName(dict) {
+    // Both the `Parent` and `T` fields are optional. While at least one of
+    // them should be provided, bad PDF generators may fail to do so.
+    if (!dict.has("T") && !dict.has("Parent")) {
+      warn("Unknown field name, falling back to empty field name.");
+      return "";
+    }
+
+    // If no parent exists, the partial and fully qualified names are equal.
+    if (!dict.has("Parent")) {
+      return stringToPDFString(dict.get("T"));
+    }
+
+    // Form the fully qualified field name by appending the partial name to
+    // the parent's fully qualified name, separated by a period.
+    const fieldName = [];
+    if (dict.has("T")) {
+      fieldName.unshift(stringToPDFString(dict.get("T")));
+    }
+
+    let loopDict = dict;
+    while (loopDict.has("Parent")) {
+      loopDict = loopDict.get("Parent");
+      if (!isDict(loopDict)) {
+        // Even though it is not allowed according to the PDF specification,
+        // bad PDF generators may provide a `Parent` entry that is not a
+        // dictionary, but `null` for example (issue 8143).
+        break;
+      }
+
+      if (loopDict.has("T")) {
+        fieldName.unshift(stringToPDFString(loopDict.get("T")));
+      }
+    }
+    return fieldName.join(".");
   }
 
   /**
@@ -2700,14 +2756,14 @@ class TextWidgetAnnotation extends WidgetAnnotation {
     }
 
     // Determine the alignment of text in the field.
-    let alignment = getInheritableProperty({ dict, key: "Q" });
+    let alignment = getInheritableProperty({dict, key: "Q"});
     if (!Number.isInteger(alignment) || alignment < 0 || alignment > 2) {
       alignment = null;
     }
     this.data.textAlignment = alignment;
 
     // Determine the maximum length of text in the field.
-    let maximumLength = getInheritableProperty({ dict, key: "MaxLen" });
+    let maximumLength = getInheritableProperty({dict, key: "MaxLen"});
     if (!Number.isInteger(maximumLength) || maximumLength < 0) {
       maximumLength = 0;
     }
@@ -3403,7 +3459,7 @@ class ChoiceWidgetAnnotation extends WidgetAnnotation {
     // inherit the options from a parent annotation (issue 8094).
     this.data.options = [];
 
-    const options = getInheritableProperty({ dict, key: "Opt" });
+    const options = getInheritableProperty({dict, key: "Opt"});
     if (Array.isArray(options)) {
       for (let i = 0, ii = options.length; i < ii; i++) {
         const option = xref.fetchIfRef(options[i]);
@@ -3683,7 +3739,8 @@ class TextAnnotation extends MarkupAnnotation {
     } else {
       this.data.rect[1] = this.data.rect[3] - DEFAULT_ICON_SIZE;
       this.data.rect[2] = this.data.rect[0] + DEFAULT_ICON_SIZE;
-      this.data.name = dict.has("Name") ? dict.get("Name").name : "Note";
+      this.data.name = dict.has("Name") ?
+        dict.get("Name").name : "Note";
     }
 
     if (dict.has("State")) {
