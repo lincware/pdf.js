@@ -1594,7 +1594,7 @@ class SignatureWidgetAnnotationElement extends WidgetAnnotationElement {
   }
 
   render() {
-    this.container.className = "sigAnnotation";
+    this.container.classList.add("sigAnnotation");
     this.container.setAttribute("data-field-id", this.data.fieldName);
 
     // Create an invisible square with the same rectangle that acts as the
